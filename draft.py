@@ -22,6 +22,17 @@ def execute_query(connection, query):
     except Error as e:
         print(f"The error '{e}' occurred")
 
+def execute_read_query(connection, query):
+    cursor = connection.cursor()
+    result = None
+    try:
+        cursor.execute(query)
+        result = cursor.fetchall()
+        print("Read successful")
+        return result
+    except Error as e:
+        print(f"The error '{e}' occurred")
+
 def create_tables():
     players = """
     CREATE TABLE IF NOT EXISTS Players (
@@ -89,56 +100,63 @@ def update_results():
     """
     execute_query(connection, query)
 
+def rem(value):
+    value = str(value)
+    return value.strip('\n').strip(',')
+
 def load_file_results(path):
     file = open(path, "r")
-    year = int(file.read(4))
-    file.read(1)
-    round = int(file.readline().strip('\n'))
-
+    line = file.readline().split(',')
+    year = line[0]
+    pos = year.find('2') #get rid of random values at start
+    year = year[pos:]
+    year = int(year)
+    round = int(line[1])
+    
     winners = set()
-    line = file.readline() # <winners>
-    line = file.readline() #first winners
-    while(line.strip('\n') != "<\Winners>"):
-        winners.add(line.strip('\n'))
-        line = file.readline()
-
     
-    while(True):
-        club = file.readline().strip('\n')
-        team = file.readline().strip('\n')
+
+    assert file.readline().strip('\n').strip(',') == "<winners>", "Not winners second line"
+    line = rem(file.readline())
+    while(rem(line) != "<\winners>"):
+        winners.add(line)
+        line = rem(file.readline())
+           
+    club = rem(file.readline())
+    
+    # while(line != team[:1] + '\\' + team[1:]):
+
+    for x in file:
+
+        name = ""
+        goals = 0
+        two_mins = 0
         win = 0
-        if( (club + team) in winners):
-            win = 1
-        
-        line = file.readline()
+        if(club == ""):
+            club = rem(x)
+            continue
 
-        #Loop through team
-        while(line != team[:1] + '\\' + team[1:]):
-            chunks = line.split()
-            name = ""
-            goals = 0
-            two_mins = 0
-            for i in range(len(chunks)):
-                if(chunks[i].isdigit()):
-                    goals = chunks[i]
-                    if(i == len(chunks)-1):
-                        break
-                    else:
-                        two_mins = chunks[i+1]
-                        break
-                else:
-                    name += chunks[i]
+        elif(rem(x) == club[:0] + '\\' + club[0:]):
+            club = ""
+            continue
 
-            query = """
+        else:
+            data = rem(x).split(',')
+            name = data[0]
+            goals = data[1]
+            if(len(data) == 3):
+                two_mins = data[2]
+            if(club in winners):
+                win = 1
+
+
+        query = """
                 INSERT INTO TmpResults
-                VALUES ({}, {}, {}, {}, {}, {}, {}, NULL)
+                VALUES ('{}', '{}', {}, {}, {}, {}, {}, NULL)
             """.format(name, club, year, round, goals, two_mins, win)
-            line = file.readline()
-        #assert file.readline() == 
-    
 
-                
-
+        execute_query(connection, query)        
+        
 
 
 
@@ -148,4 +166,17 @@ def load_file_results(path):
 
 #--------------------------------START----------------------------------------------
 connection = create_connection("fantasyDatabase.sqlite")
-#load_file_results("exFile.txt")
+create_tables()
+query = """
+        DELETE FROM TmpResults;
+        """
+execute_query(connection, query) #making sure tmpresults clear for testing
+
+load_file_results("test.csv")
+
+query = """
+        SELECT*
+        FROM TmpResults;
+        """
+testing = execute_read_query(connection, query)
+print(testing)
