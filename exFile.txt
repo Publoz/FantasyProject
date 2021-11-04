@@ -1,0 +1,19 @@
+2022 1
+<Winners>
+    Vikings A
+<\Winners>
+<Vikings>
+    <A>
+        Paul Ireland 6
+        Daniel Triebsch 3 1
+    <\A>
+    <B>
+        Partson Mutambudzi 10 2
+    <\B>
+<\Vikings>
+<Spartanz>
+    <A>
+        Willy Makea 5
+        Thomas Roxburgh 0
+    <\A>
+<\Spartanz>

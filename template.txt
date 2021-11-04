@@ -1,0 +1,21 @@
+\Year \Round
+<winners>
+    club team
+<\winners>
+//Every other team losers
+
+<Club>
+    <Team>
+        name goals [2mins]
+    <\Team>
+    <Team2>
+        name goals [2mins]
+    <\Team2>
+<\Club>
+<Club2>
+     <Team>
+        name goals [2mins]
+    <\Team>
+<\Club2>
+
+
