@@ -60,7 +60,10 @@ def create_tables():
 		FOREIGN KEY(playerName, club, year) REFERENCES players(playerName, club, year),
 		FOREIGN KEY(playerName, club, year, round) REFERENCES results(playerName, club, year, round)
 	);
-    """
+    """ 
+    execute_query(connection, players)
+    execute_query(connection, results)
+    execute_query(connection, gms)
 
 def update_results():
     query = """
@@ -70,10 +73,5 @@ def update_results():
     execute_query(connection, query)
 
 
-
-    execute_query(connection, players)
-    execute_query(connection, results)
-
-
-
+#--------------------------------START----------------------------------------------
 connection = create_connection("fantasyDatabase.sqlite")
