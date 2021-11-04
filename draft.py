@@ -24,32 +24,53 @@ def execute_query(connection, query):
 def create_tables():
     players = """
     CREATE TABLE IF NOT EXISTS Players (
-        name TEXT,
+        playerName TEXT,
         club TEXT,
         year INTEGER,
-        price INTEGER,
-        team TEXT,
-        gk INTEGER NOT NULL,
-        PRIMARY KEY(name, club, year)
-    )
+		price INTEGER,
+		team TEXT,
+		gk INTEGER NOT NULL,
+		PRIMARY KEY(playerName, club, year)
+	);
     """
 
     results = """
     CREATE TABLE IF NOT EXISTS Results (
-        name TEXT,
+        playerName TEXT,
+        club TEXT,
+        year INTEGER,
+		round INTEGER,
+		goals INTEGER,
+		twoMins INTEGER,
+		win INTEGER NOT NULL,
+		points INTEGER,
+		PRIMARY KEY(playerName, club, year, round),
+		FOREIGN KEY(playerName, club, year) REFERENCES Players(playerName, club, year)
+	);
+    """
+
+    gms = """
+    CREATE TABLE IF NOT EXISTS Gms (
+        playerName TEXT,
         club TEXT,
         year INTEGER,
         round INTEGER,
-        goals INTEGER,
-        twoMins INTEGER,
-        win INTEGER NOT NULL,
-        points INTEGER,
-        PRIMARY KEY(name, club, year, round)
-        FOREIGN KEY (name) REFERENCES Players (name),
-        FOREIGN KEY (club) REFERENCES Players (club),
-        FOREIGN KEY (year) REFERENCES Players (year),
-    )
+        gmName TEXT,
+		PRIMARY KEY(playerName, club, year, round, gmName)
+		FOREIGN KEY(playerName, club, year) REFERENCES players(playerName, club, year),
+		FOREIGN KEY(playerName, club, year, round) REFERENCES results(playerName, club, year, round)
+	);
     """
+
+def update_results():
+    query = """
+    UPDATE Results
+    SET points = goals - (twoMins*2) + (win * 3);
+    """
+    execute_query(connection, query)
+
+
+
     execute_query(connection, players)
     execute_query(connection, results)
 
