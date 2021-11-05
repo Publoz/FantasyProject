@@ -163,6 +163,29 @@ def load_file_results(path):
 
     file.close()
 
+def leaderboard():
+    query = """"
+            SELECT RANK() OVER (ORDER BY "Points" DESC) AS 'Rank', SUM(R.points) AS "Points"
+            FROM Gms G JOIN Results R
+            ON G.playerName = R.playerName AND G.club = R.club AND G.year = R.year
+            GROUP BY G.gmName
+            ORDER BY "Points" DESC;
+            """
+    return execute_read_query(connection, query)
+
+def player_stats(sorting):
+    query = """
+            SELECT P.playerName AS "Name", p.price AS "Price", p.club || ' ' || p.team AS "Team", sum(r.points) AS "Points", sum(r.points) * 1.0 / (count(R.playerName) * 1.0) AS "AVG", sum(r.twoMins) AS "2 mins"  
+            FROM Results R JOIN Players P
+            ON P.playerName = R.playerName AND p.year = r.year AND p.club = r.club
+            GROUP BY P.playerName, P.club
+            ORDER BY {} DESC; /* ORDER BY Can change based on param */
+            """.format(sorting)
+    return execute_read_query(connection, query)
+
+
+
+
 
 #--------------------------------START----------------------------------------------
 connection = create_connection("fantasyDatabase.sqlite")

@@ -3,10 +3,10 @@
 club,team,
 club ,team,
 <\winners>,,
-<club>,,
+club,,
 name,goals,[2mins]
 name,goals,[2mins]
-<\club>,,
-<club2>,,
+\club,,
+club2,,
 name,goals,[2mins]
-<\club2>,,
+\club2,,
