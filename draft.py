@@ -180,7 +180,8 @@ def leaderboard():
 #Overall player stats leaderboard
 def player_stats(sorting):
     query = """
-            SELECT P.playerName AS "Name", p.price AS "Price", p.club || ' ' || p.team AS "Team", sum(r.points) AS "Points", sum(r.points) * 1.0 / (count(R.playerName) * 1.0) AS "AVG", sum(r.twoMins) AS "2 mins"  
+            SELECT P.playerName AS "Name", p.price AS "Price", p.club || ' ' || p.team AS "Team", sum(r.points) AS "Points", 
+            sum(r.points) * 1.0 / (count(R.playerName) * 1.0) AS "AVG", sum(r.twoMins) AS "2 mins"  
             FROM Results R JOIN Players P
             ON P.playerName = R.playerName AND p.year = r.year AND p.club = r.club
             GROUP BY P.playerName, P.club
@@ -205,7 +206,7 @@ def get_squad(gmName, round): #Need to get average too
             """.format(gmName, round)
     return execute_read_query(connection, query)
 
-#Get the average amount of points for a player
+#Get the average amount of points for a player - returns int
 def get_avg(name, club, year):
     query = """
             SELECT sum(points) / count(playerName)
@@ -213,7 +214,7 @@ def get_avg(name, club, year):
             WHERE playerName = '{}' AND club = '{}' AND year = {}
             GROUP BY playerName, club;
             """.format(name, club, year)
-    return execute_read_query(connection, query)
+    return int( (execute_read_query(connection, query))[0][0])
 
 #Get a team - specify club, team and year
 #Returns [(PlayerName, price)]
@@ -236,36 +237,61 @@ def compute_cost(gmName, round):
             """.format(gmName, round)
     return execute_read_query(connection, query)
 
+#Transfer temporary results to actual results
+def tmp_to_results():
+    query = """
+            INSERT INTO Results
+            SELECT*
+            FROM TmpResults;
+            """
+    execute_query(connection, query)
+
+def clear_tables():
+    query = """
+        DELETE FROM TmpResults;
+        """
+    execute_query(connection, query) #making sure tmpresults clear for testing
+    query = """
+        DELETE FROM Players;
+        """
+    execute_query(connection, query)
+    query = """
+        DELETE FROM Gms;
+        """
+    execute_query(connection, query)
+    query = """
+        DELETE FROM Results;
+        """
+    execute_query(connection, query)
+
+#Get this rounds top 3 gms
+def round_top_gms(round):
+    query = """
+            SELECT G.gmName, sum(R.points) AS "PointsThisRound" 
+            FROM Gms G JOIN Results R
+            ON G.playerName = R.playerName AND G.club = R.club AND G.year = R.year AND G.round = R.round
+            WHERE r.round = {}
+            GROUP BY G.gmName
+            ORDER BY "PointsThisRound" DESC
+            LIMIT 3;
+            """.format(round)
+    execute_read_query(connection, query)
+
 #--------------------------------START----------------------------------------------
 connection = create_connection("fantasyDatabase.sqlite")
 create_tables()
-query = """
-        DELETE FROM TmpResults;
-        """
-execute_query(connection, query) #making sure tmpresults clear for testing
-query = """
-        DELETE FROM Players;
-        """
-execute_query(connection, query)
-query = """
-        DELETE FROM Gms;
-        """
-execute_query(connection, query)
-query = """
-        DELETE FROM Results;
-        """
-execute_query(connection, query)
+clear_tables()
 
 load_file_results("test.csv")
+update_results()
 
 query = """
         SELECT*
         FROM TmpResults;
         """
-update_results()
+
 testing = execute_read_query(connection, query) #Testing select all from tmpResults
 print(testing)
 
+#avg = get_avg("Paul Ireland", "Vikings", 2022)
 
-#print(get_avg("Paul Ireland", "Vikings", 2022)) #returns [(7,)]
-#avg = int(get_avg("Paul Ireland", "Vikings", 2022)[0][0]) #How to get value from query
