@@ -37,6 +37,10 @@ def execute_read_query(connection, query):
 
 #Creates the tables for this database
 def create_tables():
+
+    #Get rid of GK field and just have a general goalie for each team?
+    #PlayerName and club are used to distinguish between players - the year determines which
+    #year this player is playing
     players = """
     CREATE TABLE IF NOT EXISTS Players (
         playerName TEXT,
@@ -48,7 +52,7 @@ def create_tables():
 		PRIMARY KEY(playerName, club, year)
 	);
     """
-
+    #Might need to incorporate score for players points
     results = """
     CREATE TABLE IF NOT EXISTS Results (
         playerName TEXT,
@@ -79,6 +83,7 @@ def create_tables():
 	);
     """
 
+    #Is it worth storing gms total points
     gms = """
     CREATE TABLE IF NOT EXISTS Gms (
         playerName TEXT,
@@ -167,11 +172,13 @@ def load_file_results(path): #Goes into tmpResults
     file.close()
 
 #Gm's leaderboard - returns rank, name and points
+#I'll need to make year dyanmic for a lot of these queries
 def leaderboard():
     query = """"
             SELECT RANK() OVER (ORDER BY "Points" DESC) AS 'Rank', G.gmName AS 'GM', SUM(R.points) AS "Points"
             FROM Gms G JOIN Results R
-            ON G.playerName = R.playerName AND G.club = R.club AND G.year = R.year
+            ON G.playerName = R.playerName AND G.club = R.club AND G.year = R.year AND G.round = R.round
+            WHERE R.year = 2022
             GROUP BY G.gmName
             ORDER BY "Points" DESC;
             """
@@ -188,6 +195,20 @@ def player_stats(sorting):
             ORDER BY {} DESC; /* ORDER BY Can change based on param */
             """.format(sorting)
     return execute_read_query(connection, query)
+
+#Get the top 3 players for this round 
+#Will need to make year dynamic
+def round_top_players(round):
+    query = """
+            SELECT playerName, points
+            FROM Results
+            WHERE round = {} AND year = 2022
+            ORDER BY points DESC
+            LIMIT 3;
+            """.format(round)
+    return execute_read_query(connection, query)
+
+
 
 #Add a player to the players database
 def add_player(name, club, year, price, team, gk):
@@ -235,7 +256,7 @@ def compute_cost(gmName, round):
             ON P.playerName = G.playerName AND P.club = G.club AND P.year = G.year
             WHERE G.gmName = '{}' AND round = {}; 
             """.format(gmName, round)
-    return execute_read_query(connection, query)
+    return int( (execute_read_query(connection, query))[0][0]) #UNTESTED
 
 #Transfer temporary results to actual results
 def tmp_to_results():
