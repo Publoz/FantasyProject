@@ -1,0 +1,168 @@
+<html>
+  <head>
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='istyle.css') }}"
+    />
+    <title>Wellington Handball Fantasy League</title>
+    <link
+      rel="shortcut icon"
+      type="image/png"
+      href="{{ url_for('static', filename='logo.png') }}"
+    />
+    <script
+      src="https://code.jquery.com/jquery-3.6.0.js"
+      integrity="sha256-H+K7U5CnXl1h5ywQfKtSj8PCmoN9aaq30gDh27Xc0jk="
+      crossorigin="anonymous"
+    ></script>
+  </head>
+  <body>
+    <div class="left">
+      <div class="box">
+        <section>
+          <h2>Top Players</h2>
+          <ul id="top">
+            <script>
+              window.onload = function getTop() {
+                console.log("hi");
+              };
+            </script>
+          </ul>
+        </section>
+      </div>
+      <div class="box">
+        <section>
+          <h2>Fun Facts</h2>
+          <ul>
+            <li>Top fact</li>
+            <li>Heres the other</li>
+          </ul>
+        </section>
+      </div>
+    </div>
+
+    <div class="main">
+      <h1>Leaderboard</h1>
+      <table id="leaderboard">
+        <script>
+          window.onload = function load() {
+            $.ajax({
+              url: "/topGms",
+              type: "GET",
+              dataType: "json", // added data type
+              success: function (res) {
+                //console.log(res);
+                var selector = $("#leaderboard");
+                // console.log(cols);
+                var data = res.data;
+                var cols = res.cols;
+                var c = [];
+                for (var i = 0; i < cols.length; i++) {
+                  c[i] = cols[i];
+                }
+
+                buildHtmlTable(c, data, selector);
+                //addAllColumnHeaders(cols, selector);
+              },
+            });
+
+            $.ajax({
+              url: "/topPlayers",
+              type: "GET",
+              dataType: "json", // added data type
+              success: function (res) {
+                var selector = $("#top");
+                console.log(res);
+                $(selector).append(
+                  "<li> <b>" + res[0][0] + "</b> with " + res[0][1] + "</li>"
+                );
+                $(selector).append(
+                  "<li> <b>" + res[1][0] + "</b> with " + res[1][1] + "</li>"
+                );
+                $(selector).append(
+                  "<li> <b>" + res[2][0] + "</b> with " + res[2][1] + "</li>"
+                );
+                //addAllColumnHeaders(cols, selector);
+              },
+            });
+          };
+        </script>
+      </table>
+    </div>
+
+    <script>
+      // Builds the HTML Table out of myList. --------------------------------------------WACK
+      function buildHtmlTable(cols, myList, selector) {
+        addAllColumnHeaders(cols, selector);
+
+        for (var i = 0; i < myList.length; i++) {
+          var row$ = $("<tr/>");
+          for (var j = 0; j < myList[i].length; j++) {
+            var cellValue = myList[i][j];
+            if (cellValue == null) cellValue = "";
+            row$.append($("<td/>").html(cellValue));
+          }
+          $(selector).append(row$);
+        }
+      }
+
+      // Adds a header row to the table and returns the set of columns.
+      // Need to do union of keys from all records as some records may not contain
+      // all records.
+      function addAllColumnHeaders(cols, selector) {
+        var headerTr$ = $("<tr/>");
+
+        for (var i = 0; i < cols.length; i++) {
+          headerTr$.append($("<th/>").html(cols[i]));
+        }
+        $(selector).append(headerTr$);
+      } //--------------------------------------------------------------------END
+
+      /* function getPlayers() {
+        $.ajax({
+          url: "/players",
+          type: "GET",
+          dataType: "json", // added data type
+          success: function (res) {
+            console.log(res);
+            var selector = $("#leaderboard");
+
+            var data = res.data;
+            var cols = res.cols;
+            // console.log(data);
+            // console.log(cols);
+            var myList = [];
+
+            let name = cols[0][1];
+            let club = cols[1][1];
+            let year = cols[2][1];
+            let price = cols[3][1];
+            let team = cols[4][1];
+            let gk = cols[5][1];
+
+            data.forEach((player) => {
+              let entry = {
+                name: player[0],
+                club: player[1],
+                year: player[2],
+                price: player[3],
+                team: player[4],
+                gk: player[5],
+              };
+              myList.push(entry);
+            });
+
+            console.log(myList);
+            buildHtmlTable(myList, selector);
+            addAllColumnHeaders(myList, selector);
+          },
+        });
+      }
+      */
+    </script>
+  </body>
+
+  <div class="footer">
+    <h4>Made by Paul Ireland 2021</h4>
+  </div>
+</html>
