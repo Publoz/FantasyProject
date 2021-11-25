@@ -4,13 +4,24 @@
   --x: 0;
 }
 
-head {
-  text-align: center;
-}
-
 body {
   position: relative;
-  top: 20%;
+  padding-top: 8%;
+}
+
+.main {
+  background-color: beige;
+  margin-left: 10%;
+  margin-right: 10%;
+  padding: 10px;
+  width: 80%;
+  float: center;
+  border-style: solid;
+  border-color: black;
+}
+
+h1 {
+  text-align: center;
 }
 
 nav {
@@ -45,24 +56,8 @@ a:hover {
   background-color: #e3e3e3;
 }
 
-.left {
-  float: left;
-  width: 20%;
-}
-.main {
-  float: left;
-  text-align: center;
-  width: 75%;
-  color: black;
-  background-color: beige;
-  margin-left: 25px;
-  border-color: black;
-  border-style: ridge;
-}
-
-.main h2 {
-  float: left;
-  margin-left: 10%;
+th:hover {
+  background-color: white;
 }
 
 table,
@@ -74,45 +69,30 @@ td {
 }
 
 table {
-  margin-left: 35%;
-  width: 30%;
+  margin-left: 25%;
+  width: 50%;
   margin-bottom: 32px;
 }
 
 th {
   padding: 5px;
-}
-
-#leaderboard tr:nth-child(even) {
   background-color: #f2f2f2;
 }
-#leaderboard tr:nth-child(odd) {
+
+table tr:nth-child(even) {
+  background-color: #f2f2f2;
+}
+table tr:nth-child(odd) {
   background-color: white;
 }
 
-#leaderboard tr:hover :not(th) {
+table tr:hover {
   background-color: #ddd;
 }
 
-.box {
-  text-align: center;
-  background-color: yellow;
-  border-style: solid;
-  margin-bottom: 25px;
-  border-color: black;
-}
-
 .footer {
-  float: left;
-  width: 100%;
   padding: 20px;
-  left: 0px;
-  margin-top: 30px;
+  margin-top: 20px;
   text-align: center;
   background-color: darkgray;
-}
-
-li {
-  text-align: left;
-  padding: 10px;
 }

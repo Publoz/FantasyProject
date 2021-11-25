@@ -1,8 +1,11 @@
 from os import name
 import sqlite3
 from sqlite3 import Error
+from sqlite3.dbapi2 import Connection
+from flask import Flask, render_template, url_for, redirect, jsonify, request
 
-#https://realpython.com/python-sql-libraries/#sqlite from here
+app = Flask(__name__)
+
 def create_connection(path):
     connection = None
     try:
@@ -35,9 +38,28 @@ def execute_read_query(connection, query):
     except Error as e:
         print(f"The error '{e}' occurred")
 
-#Creates the tables for this database
-def create_tables():
 
+
+@app.route('/')
+def init():
+    return redirect('/home')
+
+@app.route('/home')
+def hello_world():
+    return render_template('index.html')
+
+@app.route('/get_players', methods=['POST'])
+def get_players(): 
+    print('you are here')
+    return redirect('/home')
+
+@app.route('/players.html')
+def changeToPlayers():
+    return render_template('players.html')
+
+
+def create_tables():
+    connection = create_connection("fantasyDatabase.sqlite")
     #Get rid of GK field and just have a general goalie for each team?
     #PlayerName and club are used to distinguish between players - the year determines which
     #year this player is playing
@@ -101,218 +123,164 @@ def create_tables():
     execute_query(connection, tmp_results)
     execute_query(connection, gms)
 
-
-def update_results(): #CHANGE TO RESULTS
-    query = """ 
-    UPDATE TmpResults
-    SET points = goals - (twoMins*2) + (win);
-    """
+    #Clearing tables
+    query = """
+            DELETE FROM Gms;
+            """
+    execute_query(connection, query)
+    query = """
+            DELETE FROM Results;
+            """
+    execute_query(connection, query)
+    query = """
+            DELETE FROM TmpResults;
+            """
+    execute_query(connection, query)
+    query = """
+            DELETE FROM Players;
+            """
     execute_query(connection, query)
 
-#Removes annoying end line and commas
-def rem(value):
-    value = str(value)
-    return value.strip('\n').strip(',')
-
-#Reads a CSV file of a rounds results into tmpResults table which will need to 
-#transferred to actual results
-def load_file_results(path): #Goes into tmpResults
-    file = open(path, "r")
-    line = file.readline().split(',')
-    year = line[0]
-    pos = year.find('2') #get rid of random values at start
-    year = year[pos:]
-    year = int(year)
-    round = int(line[1])
-    
-    winners = set()
-    
-
-    assert file.readline().strip('\n').strip(',') == "<winners>", "Not winners second line"
-    line = rem(file.readline())
-    while(rem(line) != "<\winners>"):
-        winners.add(line)
-        line = rem(file.readline())
-           
-    club = rem(file.readline())
-    
-    # while(line != team[:1] + '\\' + team[1:]):
-
-    for x in file:
-
-        name = ""
-        goals = 0
-        two_mins = 0
-        win = 0
-        if(club == ""):
-            club = rem(x)
-            continue
-
-        elif(rem(x) == club[:0] + '\\' + club[0:]):
-            club = ""
-            continue
-
-        else:
-            data = rem(x).split(',')
-            name = data[0]
-            goals = data[1]
-            if(len(data) == 3):
-                two_mins = data[2]
-            if(club in winners):
-                win = 1
-
-
-        query = """
-                INSERT INTO TmpResults
-                VALUES ('{}', '{}', {}, {}, {}, {}, {}, NULL)
-            """.format(name, club, year, round, goals, two_mins, win)
-
-        execute_query(connection, query)        
-        
-    file.close()
-
-#Gm's leaderboard - returns rank, name and points
-#I'll need to make year dyanmic for a lot of these queries
-def leaderboard():
-    query = """"
-            SELECT RANK() OVER (ORDER BY "Points" DESC) AS 'Rank', G.gmName AS 'GM', SUM(R.points) AS "Points"
-            FROM Gms G JOIN Results R
-            ON G.playerName = R.playerName AND G.club = R.club AND G.year = R.year AND G.round = R.round
-            WHERE R.year = 2022
-            GROUP BY G.gmName
-            ORDER BY "Points" DESC;
-            """
-    return execute_read_query(connection, query)
-
-#Overall player stats leaderboard
-def player_stats(sorting):
     query = """
-            SELECT P.playerName AS "Name", p.price AS "Price", p.club || ' ' || p.team AS "Team", sum(r.points) AS "Points", 
-            sum(r.points) * 1.0 / (count(R.playerName) * 1.0) AS "AVG", sum(r.twoMins) AS "2 mins"  
+            INSERT INTO Players
+        VALUES ('Paul Ireland', 'Vikings', 2022, 25, 'A', 0),
+	   ('Ben Potaka', 'Victoria', 2022, 20, 'A', 0),
+	   ('Thomas Roxburgh', 'Spartanz', 2022, 10, 'A', 1),
+	   ('Willy Makea', 'Spartanz', 2022, 20, 'A', 0),
+	   ('Paul Ireland', 'Vikings', 2021, 25, 'A', 0);
+       """
+    execute_query(connection, query)
+
+    query = """
+    INSERT INTO Results 
+    VALUES ('Paul Ireland', 'Vikings', 2022, 1, 6, 0, 1, NULL),
+	   ('Willy Makea', 'Spartanz', 2022, 1, 3, 1, 0, NULL),
+	   ('Ben Potaka', 'Victoria', 2022, 1, 5, 2, 0, NULL),
+	   ('Thomas Roxburgh', 'Spartanz', 2022, 1, 0, 0, 0, NULL),
+	   ('Paul Ireland', 'Vikings', 2022, 2, 1, 0, 0, NULL),
+	   ('Willy Makea', 'Spartanz', 2022, 2, 5, 2, 1, NULL),
+	   ('Ben Potaka', 'Victoria', 2022, 2, 5, 2, 0, NULL),
+	   ('Thomas Roxburgh', 'Spartanz', 2022, 2, 0, 0, 0, NULL),
+	   ('Paul Ireland', 'Vikings', 2021, 1, 20, 3, 1, NULL)
+	   ;
+       """
+    execute_query(connection, query)
+
+    query = """
+    INSERT INTO Gms
+    VALUES ('Paul Ireland', 'Vikings', 2022, 1, 'Sauls boys'),
+	   ('Willy Makea', 'Spartanz', 2022, 1, 'Sauls boys'),
+	   ('Ben Potaka', 'Victoria', 2022, 1, 'Dave'),
+	   ('Thomas Roxburgh', 'Spartanz', 2022, 1, 'Dave'), 
+	   ('Paul Ireland', 'Vikings', 2022, 2, 'Sauls boys'),
+	   ('Willy Makea', 'Spartanz', 2022, 2, 'Sauls boys'),
+	   ('Ben Potaka', 'Victoria', 2022, 2, 'Dave'),
+	   ('Thomas Roxburgh', 'Spartanz', 2022, 2, 'Dave') 
+	   ;
+	   
+       """
+    execute_query(connection, query)
+
+    query = """
+    UPDATE Results
+    SET points = goals - (twoMins*2) + (win);   
+       """
+    execute_query(connection, query)
+
+    connection.close()
+
+@app.route('/players/<col>', methods = ['GET'])
+def getPlayers(col):
+    connection = create_connection("fantasyDatabase.sqlite")
+    query = """
+            SELECT P.playerName AS "Name", p.price AS "Price", p.club || ' ' || p.team AS "Team", sum(r.points) AS "Points",
+            round(sum(r.points) * 1.0 / (count(R.playerName) * 1.0),2) AS "AVG", sum(r.twoMins) AS "2 mins"  
             FROM Results R JOIN Players P
             ON P.playerName = R.playerName AND p.year = r.year AND p.club = r.club
+            WHERE R.year = {}
             GROUP BY P.playerName, P.club
-            ORDER BY {} DESC; /* ORDER BY Can change based on param */
-            """.format(sorting)
-    return execute_read_query(connection, query)
+            ORDER BY "{}" DESC
+            """.format(year, col)
+    data = execute_read_query(connection, query)
 
-#Get the top 3 players for this round 
-#Will need to make year dynamic
-def round_top_players(round):
+    cols = ['Name', 'Price', 'Team', 'Points', 'AVG', '2 mins']
+
+    connection.close()
+
+    dic = {"cols" : cols, "data" : data}
+    return jsonify(dic)
+
+@app.route('/allTime/<col>', methods = ['GET'])
+def getAllTime(col):
+    connection = create_connection("fantasyDatabase.sqlite")
+
+    query =  """
+            SELECT playerName AS "Name", SUM(goals) AS "Goals", sum(twoMins) AS "2 minutes", sum(win) AS "Wins"
+            FROM Results
+            GROUP BY playerName
+            ORDER BY "{}" DESC;
+             """.format(col)
+    data = execute_read_query(connection, query)
+    connection.close()
+
+    cols = ['Name', 'Goals', '2 minutes', 'Wins']
+
+    dic = {"cols" : cols, "data" : data}
+    return jsonify(dic)
+
+@app.route('/topPlayers', methods = ['GET'])
+def getTop():
+    connection = create_connection("fantasyDatabase.sqlite")
+
     query = """
             SELECT playerName, points
             FROM Results
-            WHERE round = {} AND year = 2022
+            WHERE round = {} AND year = {}
             ORDER BY points DESC
             LIMIT 3;
-            """.format(round)
-    return execute_read_query(connection, query)
+            """.format(round, year)
+    data = execute_read_query(connection, query)
+    connection.close()
+    return jsonify(data)
 
+    
+@app.route('/topGms', methods = ['GET'])
+def getGms():
+   
+    connection = create_connection("fantasyDatabase.sqlite")
 
-
-#Add a player to the players database
-def add_player(name, club, year, price, team, gk):
     query = """
-            INSERT INTO Players
-            VALUES ('{}', '{}', {}, {}, '{}', {});
-            """.format(name, club, year, price, team, gk)
-    execute_query(connection, query)
-
-#Get a gm's squad for a round
-def get_squad(gmName, round): #Need to get average too
-    query = """
-            SELECT playerName, price, gk
-            FROM Players
-            WHERE gmName = '{}' AND round = {}  
-            """.format(gmName, round)
-    return execute_read_query(connection, query)
-
-#Get the average amount of points for a player - returns int
-def get_avg(name, club, year):
-    query = """
-            SELECT sum(points) / count(playerName)
-            FROM TmpResults
-            WHERE playerName = '{}' AND club = '{}' AND year = {}
-            GROUP BY playerName, club;
-            """.format(name, club, year)
-    return int( (execute_read_query(connection, query))[0][0])
-
-#Get a team - specify club, team and year
-#Returns [(PlayerName, price)]
-def get_team(club, team, year):
-    query = """
-            SELECT playerName, price
-            FROM Players
-            WHERE club = '{}' AND team = '{}' AND year = {}; 
-            """.format(club, team, year)
-
-    return execute_read_query(connection, query)
-
-#Returns the cost of a gms squad for a round
-def compute_cost(gmName, round):
-    query = """
-            SELECT SUM(price)
-            FROM Players P JOIN Gms G
-            ON P.playerName = G.playerName AND P.club = G.club AND P.year = G.year
-            WHERE G.gmName = '{}' AND round = {}; 
-            """.format(gmName, round)
-    return int( (execute_read_query(connection, query))[0][0]) #UNTESTED
-
-#Transfer temporary results to actual results
-def tmp_to_results():
-    query = """
-            INSERT INTO Results
-            SELECT*
-            FROM TmpResults;
-            """
-    execute_query(connection, query)
-
-def clear_tables():
-    query = """
-        DELETE FROM TmpResults;
-        """
-    execute_query(connection, query) #making sure tmpresults clear for testing
-    query = """
-        DELETE FROM Players;
-        """
-    execute_query(connection, query)
-    query = """
-        DELETE FROM Gms;
-        """
-    execute_query(connection, query)
-    query = """
-        DELETE FROM Results;
-        """
-    execute_query(connection, query)
-
-#Get this rounds top 3 gms
-def round_top_gms(round):
-    query = """
-            SELECT G.gmName, sum(R.points) AS "PointsThisRound" 
+            SELECT RANK() OVER (ORDER BY "Points" DESC) AS 'Rank', G.gmName AS 'GM',SUM(R.points) AS "Points"
             FROM Gms G JOIN Results R
             ON G.playerName = R.playerName AND G.club = R.club AND G.year = R.year AND G.round = R.round
-            WHERE r.round = {}
+            WHERE R.year = {}
             GROUP BY G.gmName
-            ORDER BY "PointsThisRound" DESC
-            LIMIT 3;
-            """.format(round)
-    execute_read_query(connection, query)
+            ORDER BY "Points" DESC;    
+            """.format(year)
+    data = execute_read_query(connection, query)
 
-#--------------------------------START----------------------------------------------
-connection = create_connection("fantasyDatabase.sqlite")
+    cols = ['Rank', 'Gm name', 'Points']
+    dic = {"cols" : cols, "data" : data}
+
+    connection.close()
+    return jsonify(dic)
+
+#  @app.route('/topPlayers', methods = ['GET'])
+#  def getTop():
+#     connection = create_connection("fantasyDatabase.sqlite")
+
+#     query = """
+
+#              """
+#     data = execute_read_query(connection, query)
+#     connection.close()
+#     return jsonify(data)
+
+round = 1
+year = 2022
+
 create_tables()
-clear_tables()
 
-load_file_results("test.csv")
-update_results()
-
-query = """
-        SELECT*
-        FROM TmpResults;
-        """
-
-testing = execute_read_query(connection, query) #Testing select all from tmpResults
-print(testing)
-
-#avg = get_avg("Paul Ireland", "Vikings", 2022)
+if __name__ == '__main__':
+    app.run(debug=True)
 

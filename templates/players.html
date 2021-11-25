@@ -1,0 +1,164 @@
+<html>
+  <script
+    src="https://code.jquery.com/jquery-3.6.0.js"
+    integrity="sha256-H+K7U5CnXl1h5ywQfKtSj8PCmoN9aaq30gDh27Xc0jk="
+    crossorigin="anonymous"
+  ></script>
+  <script>
+    // Builds the HTML Table out of myList. --------------------------------------------WACK
+    function buildHtmlTable(cols, myList, selector) {
+      addAllColumnHeaders(cols, selector);
+
+      for (var i = 0; i < myList.length; i++) {
+        var row$ = $("<tr/>");
+        for (var j = 0; j < myList[i].length; j++) {
+          var cellValue = myList[i][j];
+          if (cellValue == null) cellValue = "";
+          row$.append($("<td/>").html(cellValue));
+        }
+        $(selector).append(row$);
+      }
+    }
+
+    // Adds a header row to the table and returns the set of columns.
+    // Need to do union of keys from all records as some records may not contain
+    // all records.
+    function addAllColumnHeaders(cols, selector) {
+      $(selector).append("<tr>");
+      for (var i = 0; i < cols.length; i++) {
+        $(selector).append("<th>" + cols[i] + "</th>");
+      }
+      $(selector).append("/<tr>");
+    } //--------------------------------------------------------------------END
+
+    function deleteTable(name) {
+      var table = document.getElementById(name);
+      while (table.hasChildNodes()) {
+        table.removeChild(table.childNodes[0]); //delete table
+      }
+    }
+
+    window.onload = function load() {
+      $.ajax({
+        url: "/players/Points",
+        type: "GET",
+        dataType: "json", // added data type
+        success: function (res) {
+          //console.log(res);
+          var selector = $("#2022Players");
+          // console.log(cols);
+          var data = res.data;
+          var cols = res.cols;
+
+          buildHtmlTable(cols, data, selector);
+        },
+      });
+
+      $.ajax({
+        url: "/allTime/Goals",
+        type: "GET",
+        dataType: "json", // added data type
+        success: function (res) {
+          //console.log(res);
+          var selector = $("#allTime");
+          // console.log(cols);
+          var data = res.data;
+          var cols = res.cols;
+
+          buildHtmlTable(cols, data, selector);
+        },
+      });
+    };
+  </script>
+
+  <head>
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='pstyle.css') }}"
+    />
+    <title>Wellington Handball Fantasy League</title>
+    <link
+      rel="shortcut icon"
+      type="image/png"
+      href="{{ url_for('static', filename='logo.png') }}"
+    />
+    <script
+      src="https://code.jquery.com/jquery-3.6.0.js"
+      integrity="sha256-H+K7U5CnXl1h5ywQfKtSj8PCmoN9aaq30gDh27Xc0jk="
+      crossorigin="anonymous"
+    ></script>
+
+    <nav>
+      <img src="{{url_for('static', filename='whf.png')}}" />
+      <a href="/home">Home</a>
+      <a href="players.html">Players</a>
+      <a href="">My Team</a>
+      <a href="">Choose Players</a>
+    </nav>
+  </head>
+  <div class="main">
+    <h1>Player Stats</h1>
+    <table id="2022Players"></table>
+    <script>
+      $("#2022Players").click(function (e) {
+        if ($(e.target).text() == "Paul Ireland") {
+          //Is the man
+          alert("This player is the man");
+        } else {
+          if (e.target.tagName.toLocaleLowerCase() == "th") {
+            //clicked on header for 2022 table
+            var y = window.scrollY;
+            deleteTable("2022Players");
+
+            $.ajax({
+              url: "/players/" + $(e.target).text(),
+              type: "GET",
+              dataType: "json", // added data type
+              success: function (res) {
+                var selector = $("#2022Players");
+                var data = res.data;
+                var cols = res.cols;
+
+                buildHtmlTable(cols, data, selector);
+              },
+            });
+            window.scrollTo(y);
+          }
+        }
+      });
+    </script>
+    <h1>All Time Stats</h1>
+    <table id="allTime"></table>
+    <script>
+      $("#allTime").click(function (e) {
+        if ($(e.target).text() == "Paul Ireland") {
+          //Is the man
+          alert("This player is the man");
+        } else {
+          if (e.target.tagName.toLocaleLowerCase() == "th") {
+            //clicked on header for 2022 table
+            var y = window.scrollY;
+            deleteTable("allTime");
+
+            $.ajax({
+              url: "/allTime/" + $(e.target).text(),
+              type: "GET",
+              dataType: "json", // added data type
+              success: function (res) {
+                var selector = $("#allTime");
+                var data = res.data;
+                var cols = res.cols;
+
+                buildHtmlTable(cols, data, selector);
+              },
+            });
+            window.scrollTo(0, y);
+          }
+        }
+      });
+    </script>
+  </div>
+  <div class="footer">
+    <h4>Made by Paul Ireland 2021</h4>
+  </div>
+</html>
