@@ -17,11 +17,17 @@
     ></script>
 
     <nav>
-      <img src="{{url_for('static', filename='whf.png')}}" />
+      <a id="link" href="https://www.wellingtonhandball.com/"
+        ><img src="{{url_for('static', filename='whf.png')}}"
+      /></a>
       <a href="">Home</a>
       <a href="players.html">Players</a>
       <a href="">My Team</a>
       <a href="">Choose Players</a>
+      <strong> {{ name }}</strong>
+      <a href="signup" id="login">Sign Up</a>
+      <a href="login" id="login">Login</a>
+      <a href="logout" id="login">Logout</a>
     </nav>
   </head>
   <body>
@@ -42,7 +48,7 @@
         <section>
           <h2>Fun Facts</h2>
           <ul>
-            <li>Top fact</li>
+            <li>Top factasdas</li>
             <li>Heres the other</li>
           </ul>
         </section>

@@ -41,7 +41,7 @@ nav img {
   height: 90%;
 }
 
-a {
+a:not(#link) {
   position: relative;
   color: black;
   text-decoration: none;
@@ -52,7 +52,7 @@ a {
   bottom: 40%;
 }
 
-a:hover {
+a:not(#link):hover {
   background-color: #e3e3e3;
 }
 

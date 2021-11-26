@@ -25,12 +25,20 @@ nav {
   top: 0px;
 }
 
+strong {
+  color: white;
+  font-size: 36;
+  margin-left: 20%;
+}
+
 nav img {
   width: 5%;
   height: 90%;
+  float: left;
 }
 
-a {
+a:not(#link, #login) {
+  float: left;
   position: relative;
   color: black;
   text-decoration: none;
@@ -38,11 +46,21 @@ a {
   border-radius: 10px;
   margin: 10px;
   padding: 15px;
-  bottom: 40%;
 }
 
-a:hover {
+a:not(#link):hover {
   background-color: #e3e3e3;
+}
+
+#login {
+  float: right;
+  position: relative;
+  color: black;
+  text-decoration: none;
+  background-color: lightgray;
+  border-radius: 10px;
+  margin: 10px;
+  padding: 15px;
 }
 
 .left {

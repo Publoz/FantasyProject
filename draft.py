@@ -1,10 +1,23 @@
 from os import name
 import sqlite3
+import json
 from sqlite3 import Error
 from sqlite3.dbapi2 import Connection
-from flask import Flask, render_template, url_for, redirect, jsonify, request
+from flask import Flask, render_template, url_for, redirect, jsonify, request, session
+from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
+from flask_wtf import FlaskForm
+from flask_bootstrap import Bootstrap
+from wtforms import StringField, PasswordField, BooleanField
+from wtforms.validators import InputRequired, Email, Length
+from werkzeug.security import generate_password_hash, check_password_hash
 
 app = Flask(__name__)
+app.config['SECRET_KEY'] = "MrWorldWideMr305Pitbull"
+login_manager = LoginManager()
+login_manager.init_app(app)
+login_manager.login_view = 'login'
+bootstrap = Bootstrap(app)
+
 
 def create_connection(path):
     connection = None
@@ -38,6 +51,69 @@ def execute_read_query(connection, query):
     except Error as e:
         print(f"The error '{e}' occurred")
 
+def execute_read_query_one(connection, query):
+    cursor = connection.cursor()
+    result = None
+    try:
+        cursor.execute(query)
+        result = cursor.fetchone()
+        if(result is None):
+            print("Read was null")
+            return ""
+        
+        print("Read successful")
+        return result[0]
+    except Error as e:
+        print(f"The error '{e}' occurred")
+
+def execute_read_query_one_row(connection, query):
+    cursor = connection.cursor()
+    result = None
+    try:
+        cursor.execute(query)
+        result = cursor.fetchone()
+        if(result is None):
+            print("Read for row was null")
+            return ""
+        
+        print("Read successful")
+        return result
+    except Error as e:
+        print(f"The error '{e}' occurred")
+
+class LoginForm(FlaskForm):
+    gmName = StringField('Club Name', validators=[InputRequired(), Length(min=3, max=20)])
+    password = PasswordField('Password', validators=[InputRequired(), Length(min=6, max=80)])
+    remember = BooleanField('Remember me')
+
+class RegisterForm(FlaskForm):
+    gmName = StringField('Club Name', validators=[InputRequired(), Length(min=3, max=20)])
+    name = StringField('Name', validators=[InputRequired(), Length(min=3, max=30)])
+    email = StringField('Email', validators=[InputRequired(), Length(min=3, max=50)])
+    password = PasswordField('Password', validators=[InputRequired(), Length(min=6, max=80)])
+
+class User(UserMixin):
+    def __init__(self, id, gmName, email, password):
+         self.id = id
+         self.gmName = gmName
+         self.email = email
+         self.password = password
+         self.authenticated = False
+    def is_active(self):
+         return self.is_active()
+    def is_anonymous(self):
+         return False
+    def is_authenticated(self):
+         return self.authenticated
+    def is_active(self):
+         return True
+    def get_id(self):
+         return self.id
+    def get_gmName(self):
+        return self.gmName
+    def toJson(self):
+        return json.dumps(self, default=lambda o: o.__dict__)
+
 
 
 @app.route('/')
@@ -46,7 +122,7 @@ def init():
 
 @app.route('/home')
 def hello_world():
-    return render_template('index.html')
+    return render_template('index.html', name="")
 
 @app.route('/get_players', methods=['POST'])
 def get_players(): 
@@ -57,12 +133,156 @@ def get_players():
 def changeToPlayers():
     return render_template('players.html')
 
+@app.route('/debug')
+def debug():
+    print('-------------------------------------DEBUG------------')
+    if "user" in session:
+        print(session["user"])
+    
+    return redirect('/home')
+
+#-------------------------------------------------LOGIN---------------------------
+@app.route('/login', methods = ['GET', 'POST'])
+def changeToLogin():
+    form = LoginForm()
+    message = ""
+    
+    if(form.validate_on_submit()):
+        if(getUser(form.gmName.data,  (form.password.data)) == "" or not str(form.gmName.data).isalnum()
+        or not str(form.password.data).isalnum()):
+            message = "Invalid Username or password"
+            render_template('login.html', form=form, message=message)
+        else:
+            user = load_user(form.gmName.data)
+            #login_user(user, form.remember.data)
+            #session['user'] = user.toJson()
+            session['user'] = user.get_gmName()
+            return render_template('index.html', name="Welcome " + session['user'])
+
+    return render_template('login.html', form=form, message=message)
+
+@app.route('/signup', methods =['GET', 'POST'])
+def signup():
+    form = RegisterForm()
+
+    if(form.validate_on_submit()):
+        hashed = generate_password_hash(form.password.data, method='sha256')
+        registerUser(form.gmName.data, form.name.data, form.email.data, hashed)
+        return "<h1>New User created</h1>"  
+
+    return render_template('signup.html', form=form)
+# @app.route('/loginData', methods = ['POST'])
+# def validate():
+#     gmName = request.form['gmName']
+#     password = request.form['password']
+
+@login_manager.user_loader
+def load_user(gmName):
+    connection = create_connection("fantasyDatabase.sqlite")
+    query = """
+            SELECT *
+            FROM USERS
+            WHERE gmName = '{}'
+            """.format(gmName)
+
+    user = execute_read_query_one_row(connection, query)
+    if(user == ""): #TODO No idea why this started triggering on load - this is to stop crash
+        return None
+    connection.close()
+    print(user)
+    print("done")
+    return User(user[0], user[1], user[2], user[3])
+
+@app.route('/logout') #TODO Not working - could not build url endpoint
+def logout(): #Login required not working got rid of tag
+    if "user" in session:
+        session.pop("user", None)
+   # logout_user()
+    return redirect('/home')
+
+
+def getUser(gmName, password):
+    connection = create_connection("fantasyDatabase.sqlite")
+
+    query = """
+            SELECT* 
+            FROM Users
+            """
+    print(execute_read_query(connection, query))
+
+    query = """
+            SELECT password
+            FROM USERS
+            WHERE gmName = '{}'
+            """.format(gmName)
+
+    hashed = execute_read_query_one(connection, query)
+    if(hashed == ""):
+        print("User dont exist")
+        return ""
+
+    if(not(check_password_hash(hashed, password))):
+        print("hash wrong")
+        return ""
+
+    query = """
+            SELECT gmName
+            FROM Users
+            WHERE gmName = '{}' AND password = '{}'
+            """.format(gmName, hashed)
+
+    return execute_read_query_one(connection, query)
+
+def registerUser(gmName, name, email, password):
+    connection = create_connection("fantasyDatabase.sqlite")
+
+    query = """
+            INSERT INTO Users
+            VALUES (NULL, '{}', '{}', '{}', '{}');
+            """.format(gmName, name, email, password)
+
+    execute_query(connection, query)
 
 def create_tables():
     connection = create_connection("fantasyDatabase.sqlite")
     #Get rid of GK field and just have a general goalie for each team?
     #PlayerName and club are used to distinguish between players - the year determines which
     #year this player is playing
+
+
+    query = """
+            DROP TABLE IF EXISTS GMs
+            """
+    execute_query(connection, query)
+    query = """
+            DROP TABLE IF EXISTS TempResults
+            """
+    execute_query(connection, query)
+    query = """
+            DROP TABLE IF EXISTS Results
+            """
+    execute_query(connection, query)
+    query = """
+            DROP TABLE IF EXISTS Players
+            """
+    execute_query(connection, query)
+    query = """
+            DROP TABLE IF EXISTS Users
+            """
+    execute_query(connection, query)
+
+
+
+    query = """
+            CREATE TABLE IF NOT EXISTS Users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            gmName TEXT UNIQUE,
+            name TEXT,
+            email TEXT UNIQUE,
+            password TEXT);
+            """
+    execute_query(connection, query)
+
     players = """
     CREATE TABLE IF NOT EXISTS Players (
         playerName TEXT,
@@ -115,7 +335,8 @@ def create_tables():
         gmName TEXT,
 		PRIMARY KEY(playerName, club, year, round, gmName)
 		FOREIGN KEY(playerName, club, year) REFERENCES players(playerName, club, year),
-		FOREIGN KEY(playerName, club, year, round) REFERENCES results(playerName, club, year, round)
+		FOREIGN KEY(playerName, club, year, round) REFERENCES results(playerName, club, year, round),
+        FOREIGN KEY(gmName) REFERENCES Users(gmName)
 	);
     """ 
     execute_query(connection, players)
@@ -139,6 +360,17 @@ def create_tables():
     query = """
             DELETE FROM Players;
             """
+    execute_query(connection, query)
+
+
+    passw = generate_password_hash('abcabc')
+
+    query = """
+            INSERT Into USERS
+            VALUES (NULL, 'Sauls boys', 'Paulie I', 'publoz123@gmail.com', '{}'),
+                    (NULL, 'Dave', 'Master David', 'suh@asdasdsds', '{}');
+
+            """.format(passw, passw)
     execute_query(connection, query)
 
     query = """
@@ -280,6 +512,8 @@ round = 1
 year = 2022
 
 create_tables()
+
+
 
 if __name__ == '__main__':
     app.run(debug=True)

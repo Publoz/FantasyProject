@@ -1,0 +1,49 @@
+<html>
+  <head> 
+       <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='myteamStyle.css') }}"
+    />
+    <title>Wellington Handball Fantasy League</title>
+    <link
+      rel="shortcut icon"
+      type="image/png"
+      href="{{ url_for('static', filename='logo.png') }}"
+    />
+    <script
+      src="https://code.jquery.com/jquery-3.6.0.js"
+      integrity="sha256-H+K7U5CnXl1h5ywQfKtSj8PCmoN9aaq30gDh27Xc0jk="
+      crossorigin="anonymous"
+    ></script>
+
+    <nav>
+      <a id="link" href="https://www.wellingtonhandball.com/"
+        ><img src="{{url_for('static', filename='whf.png')}}"
+      /></a>
+      <a href="home">Home</a>
+      <a href="players.html">Players</a>
+      <a href="">My Team</a>
+      <a href="">Choose Players</a>
+  </head>
+  <body>
+    <section><p></p></section>
+    <section><p></p></section>
+    <section><p></p></section>
+    <section id="goalie"></section>
+    <script>
+        window.onload = function load() {
+        $.ajax({
+            url: "/players/Points",
+            type: "GET",
+            dataType: "json", // added data type
+            success: function (res) {
+                //console.log(res);
+                var selector = $("#2022Players");
+                //TODO Use query to get this week's team and display it
+                //Use session to get this person
+                },
+            });
+        };
+    </script>
+  </body>
+</html>
