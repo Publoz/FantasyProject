@@ -1,6 +1,6 @@
 <html>
-  <head> 
-       <link
+  <head>
+    <link
       rel="stylesheet"
       href="{{ url_for('static', filename='myteamStyle.css') }}"
     />
@@ -23,27 +23,99 @@
       <a href="home">Home</a>
       <a href="players.html">Players</a>
       <a href="">My Team</a>
-      <a href="">Choose Players</a>
+      <a href="choose">Choose Players</a>
+    </nav>
   </head>
+
   <body>
-    <section><p></p></section>
-    <section><p></p></section>
-    <section><p></p></section>
-    <section id="goalie"></section>
-    <script>
-        window.onload = function load() {
-        $.ajax({
-            url: "/players/Points",
-            type: "GET",
-            dataType: "json", // added data type
-            success: function (res) {
-                //console.log(res);
-                var selector = $("#2022Players");
-                //TODO Use query to get this week's team and display it
-                //Use session to get this person
-                },
-            });
-        };
-    </script>
+    <h1>Squad for Round {{ round }}</h1>
+    <h2>{{ name }}</h2>
+    <div id="info"></div>
+    <div id="players"></div>
   </body>
+
+  <script>
+    //TEMPLATE
+    // $.ajax({
+    //   url: "/squad",
+    //   type: "GET",
+    //   dataType: "json", // added data type
+    //   success: function (res) {},
+    // });
+    function displayInfo() {
+      $.ajax({
+        url: "/getSquadCost",
+        type: "GET",
+        dataType: "json", // added data type
+        success: function (res) {
+          var i = document.getElementById("info");
+          i.innerHTML = "Total cost: $" + res;
+          //console.log(res);
+        },
+      });
+      $.ajax({
+        url: "/getSquadAve",
+        type: "GET",
+        dataType: "json", // added data type
+        success: function (res) {
+          console.log(res);
+          var i = document.getElementById("info");
+          i.innerHTML = i.innerText + "<br>" + "Squad Average Points: " + res;
+        },
+      });
+    }
+  </script>
+
+  <script>
+    window.onload = function load() {
+      $.ajax({
+        url: "/squad",
+        type: "GET",
+        dataType: "json", // added data type
+        success: function (res) {
+          //console.log(res);
+          // var data = res.data;
+          var selector = $("#players");
+          var p = document.getElementById("players");
+          console.log(p.childElementCount);
+          // p.childNodes[1].innerText = data[0].toString();
+          // p.childNodes[2].innerText = data[0];
+          //            <section><p>Empty 1</p></section>
+          // <section><p>Empty 2</p></section>
+          // <section><p>Empty 3</p></section>
+          // <section id="goalie">No Goalie</section>
+
+          for (var i = 0; i < res.length; i++) {
+            //  var textNode = document.createTextNode(data[i].toString()); //-WITH
+            // p.replaceChild(textNode, p.childNodes[i]) // GETS TEXT ON SCREEN
+
+            //p.childNodes[i].nodeValue = section;
+
+            var section = document.createElement("SECTION");
+            section.innerText = res[i][0].toString();
+            p.append(section);
+
+            // var section = document.createElement("SECTION");
+            // section.innerText = data[i].toString(); //WORKS
+            // var repl = p.replaceChild(section, p.childNodes[i]) //TODO WHY IS IT ADDING A NODE!!!
+            //console.log(repl.textContent);
+
+            //console.log(repl.dat)
+          }
+          if (res.length < 4) {
+            //Add empty sections
+            for (var i = res.length; i < 4; i++) {
+              var section = document.createElement("SECTION");
+              section.innerText = "Empty " + (i + 1);
+              p.append(section);
+            }
+          }
+
+          //TODO Use query to get this week's team and display it
+          //Use session to get this person
+        },
+      });
+    };
+    displayInfo();
+  </script>
 </html>

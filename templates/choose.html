@@ -1,0 +1,321 @@
+<html>
+  <head>
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='chooseStyle.css') }}"
+    />
+    <title>Wellington Handball Fantasy League</title>
+    <link
+      rel="shortcut icon"
+      type="image/png"
+      href="{{ url_for('static', filename='logo.png') }}"
+    />
+    <script
+      src="https://code.jquery.com/jquery-3.6.0.js"
+      integrity="sha256-H+K7U5CnXl1h5ywQfKtSj8PCmoN9aaq30gDh27Xc0jk="
+      crossorigin="anonymous"
+    ></script>
+    <script>
+      class Player {
+        constructor(id, name, price, clubTeam) {
+          this.id = id;
+          this.name = name;
+          this.price = price;
+          this.clubTeam = clubTeam;
+          //this.team = team;
+        }
+      }
+    </script>
+
+    <nav>
+      <a id="link" href="https://www.wellingtonhandball.com/"
+        ><img src="{{url_for('static', filename='whf.png')}}"
+      /></a>
+      <a href="home">Home</a>
+      <a href="players.html">Players</a>
+      <a href="myTeam">My Team</a>
+      <a href="">Choose Players</a>
+    </nav>
+  </head>
+  <body>
+    <h1>Squad for Round {{ round }}</h1>
+    <h2 id="price"></h2>
+    <script>
+      function displayPrice() {
+        var i = document.getElementById("price");
+        var price = 0;
+        selected.forEach((element) => {
+          price += element.price;
+        });
+
+        i.innerText = "$" + price + "/70";
+        if (price > 70) {
+          i.style.color = "red";
+        } else {
+          i.style.color = "black";
+        }
+      }
+
+      //i.innerText = //print price
+    </script>
+    <div id="players"></div>
+    <button id="save" type="submit"><b>Save</b></button>
+    <script>
+      $("#save").click(function () {
+        console.log(allPlayers.length);
+        $.ajax({
+          url: "/saveSquad/" + JSON.stringify(selected),
+          type: "GET",
+          dataType: "json", // added data type
+          success: function (res) {
+            console.log("Success");
+          },
+        });
+      });
+
+      //   $("#save").click(function () {
+      //     $.ajax({
+      //     url: "/saveSquad/" + JSON.stringify(selected),
+      //     type: "GET",
+      //     dataType: "json", // added data type
+      //     success: function (res) {
+      //       console.log("Success")
+
+      //     //SEND Backend players we are using
+      //     // var sec = document.getElementById("players");
+      //     // //console.log(sec.childElementCount);
+      //     // var players = [];
+      //     // for (var i = 0; i < sec.childElementCount; i++) {
+      //     //   if (!sec.childNodes[i].innerText.includes("Empty")) {
+      //     //     players.push(sec.childNodes[i].dataset.id);
+      //     //     console.log(sec.childNodes[i].dataset.id);
+      //     //     console.log(sec.childNodes[i].dataset.price);
+      //     //   }
+      //       //for each child if not empty add to list
+      //       //create method for this request in draft
+      //       //check if selection valid - players, club, goalie, price etc.
+      //       //return error if not
+      //       //otherwise update and save
+      //       //NEXT -> price and updating display of this on this screen
+      //       //---------------------------------------------------------------------------------------------<------------------------------ <------
+      //     }
+
+      //   });
+      // }
+    </script>
+    <div id="lists"></div>
+  </body>
+
+  <script>
+    //current team
+    var allPlayers = [];
+    var selected = [];
+    window.onload = function load() {
+      //allPlayers.push(new Player(0, "", 0, ""));
+
+      $.ajax({
+        url: "/squad",
+        type: "GET",
+        dataType: "json", // added data type
+        success: function (res) {
+          //console.log(res);
+          data = res;
+          var selector = $("#players");
+          var p = document.getElementById("players");
+          console.log(p.childElementCount);
+
+          for (var i = 0; i < data.length; i++) {
+            // var section = document.createElement("SECTION");
+            // section.innerText = data[i][0].toString();
+            // section.setAttribute("id", "selectedPlayer");
+            // section.setAttribute("data-num", i + 1);
+            // section.setAttribute("data-price", data[i][1]);
+            // section.setAttribute("data-id", data[i][2]);
+            selected.push(
+              new Player(
+                data[i][2],
+                data[i][0].toString(),
+                data[i][1],
+                data[i][3]
+              )
+            ); //CLASS
+            // p.append(section);
+          }
+          renderSelected();
+          displayPrice();
+          // if (data.length < 4) {
+          //   //Add empty sections
+          //   for (var i = data.length; i < 4; i++) {
+          //     var section = document.createElement("SECTION");
+          //     section.innerText = "Empty " + (i + 1);
+          //     section.setAttribute("data-num", i + 1);
+          //     section.setAttribute("data-price", 0);
+          //     p.append(section);
+          //   }
+          // }
+        },
+      });
+
+      $.ajax({
+        url: "/getTeams",
+        type: "GET",
+        dataType: "json", // added data type
+        success: function (res) {
+          //console.log(res);
+          //data = res.data;
+          var selector = $("#lists");
+          var p = document.getElementById("lists");
+          console.log("budda");
+          console.log(res);
+          for (var i = 0; i < res.length; i++) {
+            // console.log("here" + i);
+            var button = document.createElement("BUTTON");
+            button.setAttribute("id", res[i].toString().replace(/\s/g, ""));
+            button.setAttribute("data-show", false);
+            button.innerText = res[i].toString();
+
+            // $("#" + res[i].toString().replace(/\s/g, "")).click(function () {
+            //   $.ajax({
+            //     url: "/getTeam/" + res[i].toString(),
+            //     type: "GET",
+            //     dataType: "json", // added data type
+            //     success: function (team) {
+            //       for (var j = 0; j < team.length; j++) {
+            //         document
+            //           .getElementById(res[i].toString())
+            //           .append(team[j][1]);
+            //       }
+            //     },
+            //   });
+            // });
+
+            p.append(button);
+          }
+        },
+      });
+    };
+
+    function getFirstWord(str) {
+      let spaceIndex = str.indexOf(" ");
+      return spaceIndex === -1 ? str : str.substr(0, spaceIndex);
+    }
+  </script>
+
+  <script>
+    function renderSelected() {
+      console.log("render " + selected.length);
+      var l = document.getElementById("players");
+      var child = l.lastElementChild;
+      while (child) {
+        //clear children
+        l.removeChild(child);
+        child = l.lastElementChild;
+      }
+
+      var count = 0; //NEXT use fixed size array, when deleting, keep pos
+      //when adding new player, look for hole first
+      //PRICE DISPLAY!
+      //Maybe not it slow
+      selected.forEach((element) => {
+        var sec = document.createElement("section");
+        sec.innerText = element.name;
+        sec.setAttribute("data-num", count + 1);
+        l.append(sec);
+        count = count + 1;
+      });
+      for (var x = count; x < 4; x++) {
+        var sec = document.createElement("section");
+        sec.innerText = "EMPTY";
+        sec.setAttribute("data-num", x + 1);
+        l.append(sec);
+      }
+    }
+  </script>
+
+  <script>
+    $("#players").click(function (e) {
+      //console.log("yeahbou");
+      if (
+        e.target.tagName.toLowerCase() == "section" &&
+        !e.target.innerText.includes("Empty")
+      ) {
+        // e.target.innerHTML = "Empty " + e.target.dataset.num;
+        // e.setAttribute("data-price", 0);
+        //console.log("NUM");
+        //console.log(e.target.dataset.num);
+        selected.splice(e.target.dataset.num - 1, 1); //CLASS
+
+        renderSelected();
+        displayPrice();
+      }
+    });
+  </script>
+
+  <script>
+    $("#lists").click(function (e) {
+      if (e.target.tagName.toLowerCase() == "button") {
+        console.log("Clicked button");
+        e.target.setAttribute("data-show", true);
+        //console.log("yessir");
+        $.ajax({
+          url: "/getTeam/" + e.target.textContent,
+          type: "GET",
+          dataType: "json", // added data type
+          success: function (team) {
+            console.log(team);
+
+            for (var j = 0; j < team.length; j++) {
+              var elem = document.createElement("p");
+              elem.setAttribute("id", "player");
+              elem.setAttribute("data-id", team[j][0]);
+              elem.setAttribute("data-price", team[j][2]);
+              allPlayers.push(
+                new Player(
+                  team[j][0],
+                  team[j][1],
+                  team[j][2],
+                  e.target.textContent
+                )
+              ); //CLASS
+              elem.innerText = team[j][1];
+              e.target.append(elem);
+            }
+          },
+        });
+      } else if (e.target.id == "player") {
+        console.log(e.target.textContent);
+        var pp = document.getElementById("players"); //changed players to pp
+        for (var i = 0; i < pp.childElementCount; i++) {
+          if (selected.length < 4) {
+            var len = selected.length;
+            //players.childNodes[i].textContent.includes("Empty")
+            var section = document.createElement("section"); //
+            section.innerText = e.target.textContent;
+            section.setAttribute("data-id", e.target.dataset.id);
+            section.setAttribute("data-num", i + 1);
+            section.setAttribute("data-price", pp.childNodes[i].dataset.price);
+            pp.replaceChild(section, pp.childNodes[i]);
+
+            //CLASS
+            var found = false;
+            allPlayers.forEach((element) => {
+              if (!found && element.id == e.target.dataset.id) {
+                selected.push(element);
+                found = true;
+              }
+            });
+
+            if (selected.length == len) {
+              throw new Error("Didn't find player");
+            }
+            renderSelected();
+            displayPrice();
+            //console.log("rawr");
+            //console.log(e.target.dataset.id);
+            break;
+          }
+        }
+      }
+    });
+  </script>
+</html>

@@ -133,6 +133,21 @@ def get_players():
 def changeToPlayers():
     return render_template('players.html')
 
+
+@app.route('/myTeam')
+def changeToMyTeam():
+    if "user" in session:
+        return render_template('myteam.html', round=round, name = session["user"])
+    else:
+        return redirect('/login')
+
+@app.route('/choose')
+def changeToChoose():
+    if "user" in session:
+        return render_template('choose.html')
+    else:
+        return redirect('/login')
+
 @app.route('/debug')
 def debug():
     print('-------------------------------------DEBUG------------')
@@ -144,12 +159,16 @@ def debug():
 #-------------------------------------------------LOGIN---------------------------
 @app.route('/login', methods = ['GET', 'POST'])
 def changeToLogin():
+
+    if("user" in session):
+        logout()
+
     form = LoginForm()
     message = ""
-    
+     
     if(form.validate_on_submit()):
-        if(getUser(form.gmName.data,  (form.password.data)) == "" or not str(form.gmName.data).isalnum()
-        or not str(form.password.data).isalnum()):
+        if(getUser(form.gmName.data,  (form.password.data)) == "" or not str(form.gmName.data).isalnum()): 
+            #or not str(form.password.data).isalnum() # SQL Injection threat
             message = "Invalid Username or password"
             render_template('login.html', form=form, message=message)
         else:
@@ -270,73 +289,85 @@ def create_tables():
             DROP TABLE IF EXISTS Users
             """
     execute_query(connection, query)
+    query = """
+            DROP TABLE IF EXISTS Years
+            """
+    execute_query(connection, query)
 
 
 
     query = """
-            CREATE TABLE IF NOT EXISTS Users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            gmName TEXT UNIQUE,
-            name TEXT,
-            email TEXT UNIQUE,
-            password TEXT);
+    CREATE TABLE IF NOT EXISTS Users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        gmName TEXT UNIQUE,
+        name TEXT,
+        email TEXT UNIQUE,
+        password TEXT);
+            """
+    execute_query(connection, query)
+
+    query = """
+    CREATE TABLE IF NOT EXISTS Players(
+        pid INTEGER PRIMARY KEY AUTOINCREMENT,
+        playerName TEXT
+    );
             """
     execute_query(connection, query)
 
     players = """
-    CREATE TABLE IF NOT EXISTS Players (
-        playerName TEXT,
+    CREATE TABLE IF NOT EXISTS Years (
+        pid INTEGER,
         club TEXT,
         year INTEGER,
 		price INTEGER,
 		team TEXT,
-		gk INTEGER NOT NULL,
-		PRIMARY KEY(playerName, club, year)
+        PRIMARY KEY(pid, year)
+        FOREIGN KEY(pid) REFERENCES Players(pid)
 	);
     """
     #Might need to incorporate score for players points
     results = """
     CREATE TABLE IF NOT EXISTS Results (
-        playerName TEXT,
-        club TEXT,
+        pid INTEGER,
         year INTEGER,
 		round INTEGER,
 		goals INTEGER,
 		twoMins INTEGER,
 		win INTEGER NOT NULL,
 		points INTEGER,
-		PRIMARY KEY(playerName, club, year, round),
-		FOREIGN KEY(playerName, club, year) REFERENCES Players(playerName, club, year)
+		PRIMARY KEY(pid, year, round),
+		FOREIGN KEY(pid, year) REFERENCES Years(pid, year)
+        FOREIGN KEY(pid) REFERENCES Players(pid)
 	);
     """
 
     tmp_results = """
-    CREATE TABLE IF NOT EXISTS TmpResults (
-        playerName TEXT,
-        club TEXT,
+     CREATE TABLE IF NOT EXISTS TmpResults (
+        pid INTEGER,
         year INTEGER,
 		round INTEGER,
 		goals INTEGER,
 		twoMins INTEGER,
 		win INTEGER NOT NULL,
 		points INTEGER,
-		PRIMARY KEY(playerName, club, year, round),
-		FOREIGN KEY(playerName, club, year) REFERENCES Players(playerName, club, year)
+		PRIMARY KEY(pid, year, round),
+		FOREIGN KEY(pid, year) REFERENCES Years(pid, year)
+        FOREIGN KEY(pid) REFERENCES Players(pid)
 	);
     """
 
     #Is it worth storing gms total points
     gms = """
     CREATE TABLE IF NOT EXISTS Gms (
-        playerName TEXT,
-        club TEXT,
+        pid INTEGER,
         year INTEGER,
         round INTEGER,
         gmName TEXT,
-		PRIMARY KEY(playerName, club, year, round, gmName)
-		FOREIGN KEY(playerName, club, year) REFERENCES players(playerName, club, year),
-		FOREIGN KEY(playerName, club, year, round) REFERENCES results(playerName, club, year, round),
+		PRIMARY KEY(pid, year, round, gmName)
+		FOREIGN KEY(pid, year) REFERENCES years(pid, year),
+		FOREIGN KEY(pid, year, round) REFERENCES results(pid, year, round),
         FOREIGN KEY(gmName) REFERENCES Users(gmName)
+        FOREIGN KEY (pid) REFERENCES Players(pid)
 	);
     """ 
     execute_query(connection, players)
@@ -374,44 +405,64 @@ def create_tables():
     execute_query(connection, query)
 
     query = """
-            INSERT INTO Players
-        VALUES ('Paul Ireland', 'Vikings', 2022, 25, 'A', 0),
-	   ('Ben Potaka', 'Victoria', 2022, 20, 'A', 0),
-	   ('Thomas Roxburgh', 'Spartanz', 2022, 10, 'A', 1),
-	   ('Willy Makea', 'Spartanz', 2022, 20, 'A', 0),
-	   ('Paul Ireland', 'Vikings', 2021, 25, 'A', 0);
+            					
+        INSERT INTO Players
+        VALUES(NULL, 'Paul Ireland'),
+            (NULL, 'Ben Potaka'),
+            (NULL, 'Thomas Roxburgh'),
+            (NULL, 'Willy Makea');
+            """
+    execute_query(connection, query)
+
+
+    query = """
+            INSERT INTO Years
+        VALUES (1, 'Vikings', 2022, 25, 'A'),
+	   (2, 'Victoria', 2022, 20, 'A'),
+	   (3, 'Spartanz', 2022, 10, 'A'),
+	   (4, 'Spartanz', 2022, 20, 'A'),
+	   (1 ,'Vikings', 2021, 25, 'A');
        """
     execute_query(connection, query)
 
+    #Paul Ireland = 1
+    #Ben Potaka = 2
+    #Thomas Roxburgh = 3
+    #Willy makea = 4
+
+
     query = """
     INSERT INTO Results 
-    VALUES ('Paul Ireland', 'Vikings', 2022, 1, 6, 0, 1, NULL),
-	   ('Willy Makea', 'Spartanz', 2022, 1, 3, 1, 0, NULL),
-	   ('Ben Potaka', 'Victoria', 2022, 1, 5, 2, 0, NULL),
-	   ('Thomas Roxburgh', 'Spartanz', 2022, 1, 0, 0, 0, NULL),
-	   ('Paul Ireland', 'Vikings', 2022, 2, 1, 0, 0, NULL),
-	   ('Willy Makea', 'Spartanz', 2022, 2, 5, 2, 1, NULL),
-	   ('Ben Potaka', 'Victoria', 2022, 2, 5, 2, 0, NULL),
-	   ('Thomas Roxburgh', 'Spartanz', 2022, 2, 0, 0, 0, NULL),
-	   ('Paul Ireland', 'Vikings', 2021, 1, 20, 3, 1, NULL)
+    VALUES (1, 2022, 1, 6, 0, 1, NULL),
+	   (4,  2022, 1, 3, 1, 0, NULL),
+	   (2,  2022, 1, 5, 2, 0, NULL),
+	   (3,  2022, 1, 0, 0, 0, NULL),
+	   (2, 2022, 2, 1, 0, 0, NULL),
+	   (4,  2022, 2, 5, 2, 1, NULL),
+	   (1,  2022, 2, 5, 2, 0, NULL),
+	   (3, 2022, 2, 0, 0, 0, NULL),
+	   (1, 2021, 1, 20, 3, 1, NULL)
 	   ;
        """
     execute_query(connection, query)
 
     query = """
     INSERT INTO Gms
-    VALUES ('Paul Ireland', 'Vikings', 2022, 1, 'Sauls boys'),
-	   ('Willy Makea', 'Spartanz', 2022, 1, 'Sauls boys'),
-	   ('Ben Potaka', 'Victoria', 2022, 1, 'Dave'),
-	   ('Thomas Roxburgh', 'Spartanz', 2022, 1, 'Dave'), 
-	   ('Paul Ireland', 'Vikings', 2022, 2, 'Sauls boys'),
-	   ('Willy Makea', 'Spartanz', 2022, 2, 'Sauls boys'),
-	   ('Ben Potaka', 'Victoria', 2022, 2, 'Dave'),
-	   ('Thomas Roxburgh', 'Spartanz', 2022, 2, 'Dave') 
+    VALUES (1, 2022, 1, 'Sauls boys'),
+	   (4, 2022, 1, 'Sauls boys'),
+	   (2, 2022, 1, 'Dave'),
+	   (3, 2022, 1, 'Dave'), 
+	   (1, 2022, 2, 'Sauls boys'),
+	   (4, 2022, 2, 'Sauls boys'),
+	   (2, 2022, 2, 'Dave'),
+	   (3, 2022, 2, 'Dave') 
 	   ;
 	   
        """
     execute_query(connection, query)
+
+    #  ('Paul Ireland', 'Vikings', 2022, 1, 'Dave'),
+	#    ('Willy Makea', 'Spartanz', 2022, 1, 'Dave'),
 
     query = """
     UPDATE Results
@@ -425,12 +476,12 @@ def create_tables():
 def getPlayers(col):
     connection = create_connection("fantasyDatabase.sqlite")
     query = """
-            SELECT P.playerName AS "Name", p.price AS "Price", p.club || ' ' || p.team AS "Team", sum(r.points) AS "Points",
-            round(sum(r.points) * 1.0 / (count(R.playerName) * 1.0),2) AS "AVG", sum(r.twoMins) AS "2 mins"  
-            FROM Results R JOIN Players P
-            ON P.playerName = R.playerName AND p.year = r.year AND p.club = r.club
+            SELECT P.playerName AS "Name", Y.price AS "Price", y.club || ' ' || Y.team AS "Team", sum(r.points) AS "Points",
+            round(sum(r.points) * 1.0 / (count(R.pid) * 1.0),2) AS "AVG", sum(r.twoMins) AS "2 mins"  
+            FROM Results R JOIN Players P JOIN Years Y
+            ON R.pid = p.pid AND r.year = y.year AND P.pid = y.pid AND R.pid = y.pid 
             WHERE R.year = {}
-            GROUP BY P.playerName, P.club
+            GROUP BY P.pid
             ORDER BY "{}" DESC
             """.format(year, col)
     data = execute_read_query(connection, query)
@@ -447,9 +498,10 @@ def getAllTime(col):
     connection = create_connection("fantasyDatabase.sqlite")
 
     query =  """
-            SELECT playerName AS "Name", SUM(goals) AS "Goals", sum(twoMins) AS "2 minutes", sum(win) AS "Wins"
-            FROM Results
-            GROUP BY playerName
+            SELECT p.playerName AS "Name", SUM(goals) AS "Goals", sum(twoMins) AS "2 minutes", sum(win) AS "Wins"
+            FROM Results R JOIN Players P
+            ON r.pid = p.pid
+            GROUP BY p.pid
             ORDER BY "{}" DESC;
              """.format(col)
     data = execute_read_query(connection, query)
@@ -465,8 +517,9 @@ def getTop():
     connection = create_connection("fantasyDatabase.sqlite")
 
     query = """
-            SELECT playerName, points
-            FROM Results
+            SELECT P.playerName, R.points
+            FROM Results R JOIN Players P
+            ON R.pid = P.pid 
             WHERE round = {} AND year = {}
             ORDER BY points DESC
             LIMIT 3;
@@ -484,7 +537,7 @@ def getGms():
     query = """
             SELECT RANK() OVER (ORDER BY "Points" DESC) AS 'Rank', G.gmName AS 'GM',SUM(R.points) AS "Points"
             FROM Gms G JOIN Results R
-            ON G.playerName = R.playerName AND G.club = R.club AND G.year = R.year AND G.round = R.round
+            ON G.pid = R.pid AND G.year = r.year AND g.round = r.round
             WHERE R.year = {}
             GROUP BY G.gmName
             ORDER BY "Points" DESC;    
@@ -497,6 +550,138 @@ def getGms():
     connection.close()
     return jsonify(dic)
 
+@app.route('/squad', methods=['GET'])
+def getSquad():
+    connection = create_connection("fantasyDatabase.sqlite")
+
+    query = """
+            SELECT p.PlayerName, y.price, p.pid, y.club || ' ' ||y.team
+            FROM Gms G JOIN Players P join Years y
+            ON G.pid = P.pid AND Y.pid = P.pid AND y.year = g.year
+            WHERE g.year = {} AND Round = {} AND gmName = '{}';
+            """.format(year, round, session['user'])
+
+    #dic = {"players": ["players"], "data":execute_read_query(connection, query) }
+    dic = execute_read_query(connection, query)
+   #print(dic.data)
+    return jsonify(dic)
+
+
+@app.route('/saveSquad/<jsdata>')
+def saveSquad(jsdata):
+    data = json.loads(jsdata)
+
+    total = 0
+    ids = []
+    if(len(data) < 1 or len(data) > 4):
+        return "Wrong number of people"
+
+    for player in data:
+        id = player.get("id")
+        if(id in ids):
+            return "Duplicate player"
+        ids.append(id)
+        name = player.get("name")
+        clubTeam = player.get("clubTeam")
+        price = player.get("price")
+        if(price < 10 or price > 25 or price % 5 != 0): 
+            return "failure"
+        total += price
+
+
+
+    if(total > maxSquadCost):
+        return "Failure"
+
+    return "SUCCESS"
+    connection = create_connection("fantasyDatabase.sqlite") 
+    query = """
+            DELETE FROM Gms
+            WHERE gmName = '{}' AND year = {} AND round = {} 
+            """.format(session['user'], year, round)
+    execute_query(connection, query)
+
+   
+    for i in ids:
+         query = """
+                INSERT VALUES INTO Gms
+                ({}, {}, {}, '{}');
+                """ .format(i, year, round, session["user"])
+         execute_query(connection, query)
+       
+    connection.close()
+    print(data)
+    return jsonify("Saved!")
+# @app.route('/squadPrice', methods=['GET'])
+# def getSquadPrice():
+#     connection = create_connection("fantasyDatabase.sqlite")
+
+#     query = """
+#             SELECT P.PlayerName, y.Price
+#             FROM Gms G JOIN Years y JOIN Players P
+#             ON P.pid = y.pid AND g.pid = y.pid AND y.year = G.year
+#             WHERE Round = {} AND gmName = '{}';
+#             """.format(round, session['user'])
+
+#     #dic = {"players": ["players"], "data": }
+#     return jsonify(execute_read_query(connection, query))
+
+
+@app.route('/getTeam/<club>')
+def getTeam(club):
+    connection = create_connection("fantasyDatabase.sqlite")
+
+    data = club.split()
+
+    query = """
+            SELECT y.pid, playerName, price
+            FROM Players P JOIN Years Y
+            ON P.pid = y.pid
+            WHERE y.club = '{}' AND y.team = '{}' AND y.year = {};
+            """.format(data[0], data[1], year)
+
+    return jsonify(execute_read_query(connection, query))
+
+@app.route('/getTeams')
+def getTeams():
+    connection = create_connection("fantasyDatabase.sqlite")
+
+    query = """
+            SELECT DISTINCT club || ' ' || team AS "team"
+            FROM Years 
+            WHERE year = {}
+            """.format(year)
+
+    return jsonify(execute_read_query(connection, query))
+
+@app.route('/getSquadCost')
+def getSquadCost():
+    connection = create_connection("fantasyDatabase.sqlite")
+    query = """
+            SELECT SUM(y.price)
+            FROM Gms G JOIN Years Y
+            ON G.pid = y.pid
+            WHERE G.gmName = '{}' AND y.year = {} AND g.round = {}
+            """.format(session['user'], year, round)
+
+    return jsonify(execute_read_query_one(connection, query))
+
+@app.route('/getSquadAve')
+def getSquadAve():
+     connection = create_connection("fantasyDatabase.sqlite")
+     query = """
+           SELECT SUM(T.Ave)
+            FROM (SELECT y.pid AS "pid", SUM(r.points) / COUNT(r.points) AS "Ave"
+			 FROM Years Y JOIN Results R
+			 ON Y.pid = R.pid AND Y.year = R.year 
+			 WHERE y.year = 2022
+			 GROUP BY R.pid) T JOIN Gms G
+			 ON T.pid = G.pid
+            WHERE g.year = {} AND g.round = {} AND G.gmName = '{}'; 
+            """.format(year, round, session['user'])
+
+     return jsonify(execute_read_query_one(connection, query))
+        
 #  @app.route('/topPlayers', methods = ['GET'])
 #  def getTop():
 #     connection = create_connection("fantasyDatabase.sqlite")
@@ -510,6 +695,7 @@ def getGms():
 
 round = 1
 year = 2022
+maxSquadCost = 70
 
 create_tables()
 

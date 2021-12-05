@@ -9,8 +9,9 @@ head {
 }
 
 body {
+  /* top: 20%;*/
   position: relative;
-  top: 20%;
+  padding-top: 8%;
 }
 
 nav {
@@ -66,7 +67,10 @@ a:not(#link):hover {
 .left {
   float: left;
   width: 20%;
+  margin-left: 20px;
+  margin-top: 10px;
 }
+
 .main {
   float: left;
   text-align: center;
@@ -74,6 +78,7 @@ a:not(#link):hover {
   color: black;
   background-color: beige;
   margin-left: 25px;
+  margin-top: 10px;
   border-color: black;
   border-style: ridge;
 }
@@ -108,7 +113,7 @@ th {
   background-color: white;
 }
 
-#leaderboard tr:hover :not(th) {
+#leaderboard tr:hover :not(th, #highlight) {
   background-color: #ddd;
 }
 
@@ -133,4 +138,8 @@ th {
 li {
   text-align: left;
   padding: 10px;
+}
+
+#highlight {
+  background-color: rgb(226, 226, 52);
 }

@@ -40,25 +40,18 @@ a:not(#link):hover {
 }
 
 h1 {
-  margin-top: 10%;
+  margin-top: 8%;
   text-align: center;
 }
 
 h2 {
-  position: static;
-  margin-top: 5%;
   text-align: center;
-  background-color: white;
-  /* display: inline-block;
-  margin-left: 50%; */
-  /* left: 50%; */
-  padding: 15px;
+  font-size: 1.5vw;
 }
 
-/* https://projects.verou.me/css3patterns/#carbon */
 #players {
   margin-left: 5%;
-  margin-top: 2%;
+  margin-top: 3%;
   padding: 30px;
   width: 90%;
   background: linear-gradient(27deg, #151515 5px, transparent 5px) 0 5px,
@@ -82,12 +75,6 @@ h2 {
   align-items: stretch;
 }
 
-#info {
-  text-align: center;
-  font-size: 1.5vw;
-  margin-top: 30px;
-}
-
 section {
   background-color: black;
 
@@ -97,6 +84,43 @@ section {
   padding: 30px;
   float: left;
   top: 10%;
-  font-size: 22;
+  font-size: 1.5vw;
   text-align: center;
+}
+
+#VikingsA {
+  background-color: red;
+}
+
+#VictoriaA {
+  background-color: darkgreen;
+}
+
+button {
+  background-color: yellow;
+  padding: 20px;
+  font-size: 1vw;
+  margin-top: 3%;
+  margin-left: 10%;
+  font-weight: bold;
+}
+
+#save {
+  /*Needs to be centred*/
+  background-color: lightskyblue;
+  margin-left: 50%;
+  padding: 15px;
+}
+#save:hover {
+  background-color: rgb(172, 223, 255);
+}
+
+#lists p {
+  background-color: black;
+  color: white;
+  padding: 7px;
+}
+
+#lists p:hover {
+  background-color: #343434;
 }
