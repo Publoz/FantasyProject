@@ -39,7 +39,9 @@
   </head>
   <body>
     <h1>Squad for Round {{ round }}</h1>
+
     <h2 id="price"></h2>
+    <h1 id="error"></h1>
     <script>
       function displayPrice() {
         var i = document.getElementById("price");
@@ -53,6 +55,8 @@
           i.style.color = "red";
         } else {
           i.style.color = "black";
+          var err = document.getElementById("error");
+          err.innerText = "";
         }
       }
 
@@ -66,9 +70,16 @@
         $.ajax({
           url: "/saveSquad/" + JSON.stringify(selected),
           type: "GET",
-          dataType: "json", // added data type
+          dataType: "json",
           success: function (res) {
             console.log("Success");
+            if (res.success == "failure") {
+              var err = document.getElementById("error");
+              err.innerText = res.reason;
+            } else {
+              var err = document.getElementById("error");
+              err.innerText = res.success;
+            }
           },
         });
       });
@@ -245,6 +256,8 @@
         //console.log(e.target.dataset.num);
         selected.splice(e.target.dataset.num - 1, 1); //CLASS
 
+        // var err = document.getElementById("error");
+        // err.innerText = "";
         renderSelected();
         displayPrice();
       }

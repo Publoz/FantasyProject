@@ -5,13 +5,31 @@ from sqlite3 import Error
 from sqlite3.dbapi2 import Connection
 from flask import Flask, render_template, url_for, redirect, jsonify, request, session
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
-from flask_wtf import FlaskForm
+from flask_wtf import FlaskForm, RecaptchaField
 from flask_bootstrap import Bootstrap
-from wtforms import StringField, PasswordField, BooleanField
+from flask_recaptcha import ReCaptcha
+#from flask_uploads import DATA, configure_uploads, IMAGES, UploadSet
+from wtforms import StringField, PasswordField, BooleanField, FileField
 from wtforms.validators import InputRequired, Email, Length
 from werkzeug.security import generate_password_hash, check_password_hash
+from werkzeug.utils import secure_filename
+# from werkzeug.datastructures import  FileStorage
+#clea
 
 app = Flask(__name__)
+
+app.config['RECAPTCHA_PUBLIC_KEY'] = '6LfvVIIdAAAAAEdT5AFV-P0lTlzV1B5dgNI71M_a' # <-- Add your site key
+app.config['RECAPTCHA_PRIVATE_KEY'] = '6LfvVIIdAAAAAOum0uXsTy4yzhT7r_Hv4I_og6B_' # <-- Add your secret key
+app.config['TESTING'] = True
+app.config['UPLOAD_FOLDER'] = 'static/'
+
+#files = UploadSet('files', DATA)
+#configure_uploads(app, files)
+#6Le4Jn8dAAAAAH9qVnm2aocUvelNKQmDXf4t9phZ - site key
+#6Le4Jn8dAAAAAFfh4315mHd2h5ljUA2V1dYoRoo - sec
+
+recaptcha = ReCaptcha(app)
+
 app.config['SECRET_KEY'] = "MrWorldWideMr305Pitbull"
 login_manager = LoginManager()
 login_manager.init_app(app)
@@ -91,6 +109,11 @@ class RegisterForm(FlaskForm):
     name = StringField('Name', validators=[InputRequired(), Length(min=3, max=30)])
     email = StringField('Email', validators=[InputRequired(), Length(min=3, max=50)])
     password = PasswordField('Password', validators=[InputRequired(), Length(min=6, max=80)])
+    recap = RecaptchaField()
+
+class ResultsForm(FlaskForm):
+    results = FileField('results')
+    
 
 class User(UserMixin):
     def __init__(self, id, gmName, email, password):
@@ -122,6 +145,8 @@ def init():
 
 @app.route('/home')
 def hello_world():
+    if( "user" in session):
+        return render_template('index.html', name="Welcome " + session['user'])
     return render_template('index.html', name="")
 
 @app.route('/get_players', methods=['POST'])
@@ -144,9 +169,33 @@ def changeToMyTeam():
 @app.route('/choose')
 def changeToChoose():
     if "user" in session:
-        return render_template('choose.html')
+        return render_template('choose.html', round=round)
     else:
         return redirect('/login')
+
+@app.route('/admin', methods = ['GET', 'POST'])
+def changeToAdmin():
+
+    form = ResultsForm()
+    if session["user"] == "Master":
+        if(form.validate_on_submit()):
+            # filename = files.save(form.results.data)
+            f = form.results.data
+            filename = secure_filename(f.filename)
+            f.save(app.config['UPLOAD_FOLDER'] + filename)
+            readResults(filename)
+            print(filename)
+            return redirect('/home')
+        else:
+            return render_template('admin.html', form=form)
+    else:
+        return redirect('/home')
+
+
+def readResults(filename):
+    file = open(app.config['UPLOAD_FOLDER'] + filename, "r")
+    print(file.readline())
+    print(file.readline())
 
 @app.route('/debug')
 def debug():
@@ -167,10 +216,20 @@ def changeToLogin():
     message = ""
      
     if(form.validate_on_submit()):
-        if(getUser(form.gmName.data,  (form.password.data)) == "" or not str(form.gmName.data).isalnum()): 
+        if (form.gmName.data == 'Master'): #TODO Check if admin login secure?
+            print("admin")
+            if(check_password_hash(ps, form.password.data)):
+                print("ADMIN LOGIN")
+                session['user'] = 'Master'
+                return render_template('index.html', name="Welcome Admin")
+
+        elif(getUser(form.gmName.data,  form.password.data) == "" or not str(form.gmName.data).isalnum()): 
             #or not str(form.password.data).isalnum() # SQL Injection threat
             message = "Invalid Username or password"
             render_template('login.html', form=form, message=message)
+
+       
+        
         else:
             user = load_user(form.gmName.data)
             #login_user(user, form.remember.data)
@@ -185,15 +244,35 @@ def signup():
     form = RegisterForm()
 
     if(form.validate_on_submit()):
+
+        if recaptcha.verify(): # Use verify() method to see if ReCaptcha is filled out
+            pass
+        else:
+            message = 'Please fill out the ReCaptcha!' # Send error message
+            return render_template('signup.html', form=RegisterForm(), message=message)
+
+        if(checkValidSignup(form) == 1 or form.gmName.data == 'Master'): #admin login name not in db
+            return render_template('signup.html', form=RegisterForm(), message="Club or email exists")
+
         hashed = generate_password_hash(form.password.data, method='sha256')
         registerUser(form.gmName.data, form.name.data, form.email.data, hashed)
-        return "<h1>New User created</h1>"  
-
+        return redirect('/home')
+ 
+    #https://www.youtube.com/watch?v=VrH0eH4nE-c 
     return render_template('signup.html', form=form)
 # @app.route('/loginData', methods = ['POST'])
 # def validate():
 #     gmName = request.form['gmName']
 #     password = request.form['password']
+
+def checkValidSignup(form):
+     connection = create_connection("fantasyDatabase.sqlite")
+     query = """
+            SELECT EXISTS(SELECT gmName, email
+                            FROM Users
+                            WHERE gmName = '{}' OR email = '{}')
+             """.format(form.gmName.data, form.email.data)
+     return(execute_read_query_one(connection, query))
 
 @login_manager.user_loader
 def load_user(gmName):
@@ -512,6 +591,7 @@ def getAllTime(col):
     dic = {"cols" : cols, "data" : data}
     return jsonify(dic)
 
+#TODO will probably need to make this round-1
 @app.route('/topPlayers', methods = ['GET'])
 def getTop():
     connection = create_connection("fantasyDatabase.sqlite")
@@ -567,6 +647,8 @@ def getSquad():
     return jsonify(dic)
 
 
+#TODO Make post, print out error message and don't save
+#Check for number of players from a club - will also need GK
 @app.route('/saveSquad/<jsdata>')
 def saveSquad(jsdata):
     data = json.loads(jsdata)
@@ -574,26 +656,33 @@ def saveSquad(jsdata):
     total = 0
     ids = []
     if(len(data) < 1 or len(data) > 4):
-        return "Wrong number of people"
+        dic = {"reason": "Wrong number of people", "success": "failure"}
+        return jsonify(dic)
 
     for player in data:
         id = player.get("id")
         if(id in ids):
-            return "Duplicate player"
+            dic = {"reason": "Duplicate player", "success": "failure"}
+            return jsonify(dic)
         ids.append(id)
         name = player.get("name")
         clubTeam = player.get("clubTeam")
         price = player.get("price")
         if(price < 10 or price > 25 or price % 5 != 0): 
-            return "failure"
+            dic = {"reason": "The price of a player was invalid", "success": "failure"}
+            return jsonify(dic)
         total += price
 
 
 
     if(total > maxSquadCost):
-        return "Failure"
+        print('Too EXPENSIVE!!')
+        error = "Too much money"
+        dic = {"reason": "Too expensive", "success": "failure"}
+        return jsonify(dic)
+        #return render_template('choose.html', round=round, error=error)#render_template('choose.html', round=round, error="Too Expensive")
 
-    return "SUCCESS"
+    #return "SUCCESS"
     connection = create_connection("fantasyDatabase.sqlite") 
     query = """
             DELETE FROM Gms
@@ -604,14 +693,16 @@ def saveSquad(jsdata):
    
     for i in ids:
          query = """
-                INSERT VALUES INTO Gms
-                ({}, {}, {}, '{}');
+                INSERT INTO Gms
+                VALUES ({}, {}, {}, '{}');
                 """ .format(i, year, round, session["user"])
          execute_query(connection, query)
        
     connection.close()
     print(data)
-    return jsonify("Saved!")
+    dic = {"reason": "N/A", "success": "Saved!"}
+    return jsonify(dic)
+    #return jsonify("Saved!")
 # @app.route('/squadPrice', methods=['GET'])
 # def getSquadPrice():
 #     connection = create_connection("fantasyDatabase.sqlite")
@@ -696,6 +787,10 @@ def getSquadAve():
 round = 1
 year = 2022
 maxSquadCost = 70
+error = ""
+ps = generate_password_hash("WellyFantasy2021", method="sha256") #TODO should this be more securely initiated
+
+
 
 create_tables()
 

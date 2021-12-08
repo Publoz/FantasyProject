@@ -39,7 +39,7 @@ a:not(#link):hover {
   background-color: #e3e3e3;
 }
 
-h1 {
+h1:not(#error) {
   margin-top: 8%;
   text-align: center;
 }
@@ -123,4 +123,10 @@ button {
 
 #lists p:hover {
   background-color: #343434;
+}
+
+#error {
+  color: red;
+  font-style: italic;
+  text-align: center;
 }
