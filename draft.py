@@ -10,11 +10,25 @@ from flask_bootstrap import Bootstrap
 from flask_recaptcha import ReCaptcha
 #from flask_uploads import DATA, configure_uploads, IMAGES, UploadSet
 from wtforms import StringField, PasswordField, BooleanField, FileField
+from wtforms.fields.choices import RadioField
+from wtforms.fields.numeric import IntegerField
+from wtforms.fields.simple import SubmitField
 from wtforms.validators import InputRequired, Email, Length
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 # from werkzeug.datastructures import  FileStorage
 #clea
+
+
+round = 1
+year = 2022
+maxSquadCost = 70
+error = ""
+fact1 = "Hello and Welcome to this year's Wellington Handball Fantasy!"
+fact2 = "Please note selections will close Saturday night - any questions email publoz123@gmail.com"
+locked = False
+adminQuery = ""
+adCols = []
 
 app = Flask(__name__)
 
@@ -113,7 +127,37 @@ class RegisterForm(FlaskForm):
 
 class ResultsForm(FlaskForm):
     results = FileField('results')
-    
+    submitR = SubmitField("Upload")
+
+class DrawForm(FlaskForm):
+    draw = FileField("Draw Picture")
+    submitD = SubmitField("Upload")
+
+class AdminForm(FlaskForm):
+    topFacts = StringField('Top Fact 1')
+    topFacts2 = StringField('Top Fact 2')
+    delete = StringField('Delete User (gmName)')
+    updateRound = IntegerField('Update Round')
+    lock = RadioField('Lock Choices', choices=[(True, "Lock"), (False, "Unlock")], default=locked)
+    submit = SubmitField("Submit")
+
+class UpdatePlayerForm(FlaskForm):
+    pid = IntegerField("Player ID")
+    round = IntegerField("Round")
+    goals = IntegerField("Goals")
+    twoMins = IntegerField("Two Mins")
+    win = IntegerField("Win")   
+    submitP = SubmitField("Update") 
+
+class QueryForm(FlaskForm):
+    query = StringField("Query")
+    cols = StringField("Cols (Comma seperated)")
+    submitQ = SubmitField("Query")
+
+class UserForm(FlaskForm):
+    valid = StringField("User to Validate")
+    remove = StringField("Remove all users validation")
+    submitU = SubmitField("Update")
 
 class User(UserMixin):
     def __init__(self, id, gmName, email, password):
@@ -146,8 +190,8 @@ def init():
 @app.route('/home')
 def hello_world():
     if( "user" in session):
-        return render_template('index.html', name="Welcome " + session['user'])
-    return render_template('index.html', name="")
+        return render_template('index.html', name="Welcome " + session['user'], fact1=fact1, fact2=fact2, round=round)
+    return render_template('index.html', name="", fact1=fact1, fact2=fact2, round = round)
 
 @app.route('/get_players', methods=['POST'])
 def get_players(): 
@@ -168,6 +212,13 @@ def changeToMyTeam():
 
 @app.route('/choose')
 def changeToChoose():
+
+    if not "user" in session:
+        return redirect("/login")
+
+    if session["user"] == "Master":
+        return redirect("/home")
+
     if "user" in session:
         return render_template('choose.html', round=round)
     else:
@@ -177,25 +228,190 @@ def changeToChoose():
 def changeToAdmin():
 
     form = ResultsForm()
+    adForm = AdminForm()
+    playerForm = UpdatePlayerForm()
+    queryForm = QueryForm()
+    userForm = UserForm()
+    drawForm = DrawForm()
+
     if session["user"] == "Master":
-        if(form.validate_on_submit()):
+        if(form.submitR.data and form.validate()):
             # filename = files.save(form.results.data)
             f = form.results.data
             filename = secure_filename(f.filename)
+
+            if(filename[len(filename)-4:len(filename)] != ".csv"):
+                print("Wrong file type")
+                print(filename[len(filename)-4])
+                return redirect('/home')
+
             f.save(app.config['UPLOAD_FOLDER'] + filename)
             readResults(filename)
             print(filename)
-            return redirect('/home')
+            return render_template("admin.html", form=form, adForm=adForm, playerForm=playerForm, queryForm=queryForm, userForm=userForm, drawForm=drawForm)
+
+
+        elif(drawForm.submitD.data and drawForm.validate()):
+            f = drawForm.draw.data
+            filename = secure_filename(f.filename)
+            f.save(app.config['UPLOAD_FOLDER'] + filename)
+            return render_template("admin.html", form=form, adForm=adForm, playerForm=playerForm, queryForm=queryForm, userForm=userForm, drawForm=drawForm)
+
+
+        elif(userForm.submitU.data):
+            connection = create_connection("fantasyDatabase.sqlite")
+
+            if(userForm.valid.data != ""):
+               # print(userForm.valid.data)
+                query = """
+                        UPDATE Users
+                        SET valid = 1
+                        WHERE gmName = '{}';
+                        """.format(userForm.valid.data)
+                execute_query(connection, query)
+
+            elif(userForm.remove.data == 1):
+                query = """
+                        UPDATE Users
+                        SET valid = 0;
+                        """
+                execute_query(connection, query)
+            
+
+            return render_template("admin.html", form=form, adForm=adForm, playerForm=playerForm, queryForm=queryForm, userForm=userForm, drawForm=drawForm)
+
+        elif(adForm.submit.data):
+            #String empty = ''
+            #Integer = None
+            global fact1, fact2, round, locked
+            if(adForm.topFacts.data != ""):
+                fact1 = adForm.topFacts.data
+
+            if(adForm.topFacts2.data != ""):
+                fact2 = adForm.topFacts2.data
+
+            if(adForm.delete.data != ""): #Permanent user removal - should it be just gms for a year
+                connection = create_connection("fantasyDatabase.sqlite")
+
+                query = """
+                        DELETE FROM GMs
+                        WHERE gmName = '{}'
+                        """.format(adForm.delete.data)
+                execute_query(connection, query)
+
+                query = """
+                        DELETE FROM Users
+                        WHERE gmName = '{}'
+                        """.format(adForm.delete.data)
+                execute_query(connection, query)
+
+            if(adForm.updateRound.data != None):
+                round = adForm.updateRound.data
+
+            if(adForm.lock.data == True):
+                connection = create_connection("fantasyDatabase.sqlite")
+                locked = False
+                #TODO TEST
+                #Update gms who didn't make a selection this round
+                query = """ 
+                        INSERT INTO Gms
+                        SELECT pid, year, (round+1), gmName
+                        FROM Gms
+                        WHERE year={} AND round = {} AND NOT gmName IN (SELECT DISTINCT gmName
+                                                            FROM Gms
+                                                            WHERE year = {} AND round = {})
+                        ;
+                        """.format(year,round,year,round)
+                execute_query(connection, query)
+
+            return render_template("admin.html", form=form, adForm=adForm, playerForm=playerForm, queryForm=queryForm, userForm=userForm, drawForm=drawForm)
+        
+        elif(playerForm.submitP.data and playerForm.validate()):
+            connection = create_connection("fantasyDatabase.sqlite")
+
+            query = """
+                    UPDATE Results
+                    SET goals = {}, twoMins = {}, win = {}
+                    WHERE year = {} AND PID = {} AND round = {}
+                    """.format(playerForm.goals.data, playerForm.twoMins.data, playerForm.win.data, year, playerForm.pid.data, playerForm.round.data)
+
+            execute_query(connection, query)
+            updatePoints()
+            return render_template("admin.html", form=form, adForm=adForm, playerForm=playerForm, queryForm=queryForm, userForm=userForm, drawForm=drawForm)
+
+        elif(queryForm.submitQ.data and queryForm.validate()):
+            global adminQuery, adCols
+            adminQuery = queryForm.query.data
+            adCols = queryForm.cols.data.split(",")
+
+            return render_template("admin.html", form=form, adForm=adForm, playerForm=playerForm, queryForm=queryForm, userForm=userForm, drawForm=drawForm)
+
         else:
-            return render_template('admin.html', form=form)
+            return render_template("admin.html", form=form, adForm=adForm, playerForm=playerForm, queryForm=queryForm, userForm=userForm, drawForm=drawForm)
     else:
         return redirect('/home')
 
 
+#Removes annoying end line and commas
+def rem(value):
+    value = str(value)
+    return value.strip('\n').strip(',')
+
 def readResults(filename):
     file = open(app.config['UPLOAD_FOLDER'] + filename, "r")
-    print(file.readline())
-    print(file.readline())
+    line = file.readline().split(',')
+    year = line[0]
+    pos = year.find('2') #get rid of random values at start
+    year = year[pos:]
+    year = int(year)
+    round = int(line[1])
+    
+    winners = set()
+    
+
+    assert file.readline().strip('\n').strip(',') == "<winners>", "Not winners second line"
+    line = rem(file.readline())
+    while(rem(line) != "<\winners>"):
+        winners.add(line)
+        line = rem(file.readline())
+           
+    club = rem(file.readline())
+    
+    # while(line != team[:1] + '\\' + team[1:]):
+
+    for x in file:
+
+        pid = 0 #PID and name swapped from original
+        goals = 0
+        two_mins = 0
+        win = 0
+        if(club == ""):
+            club = rem(x)
+            continue
+
+        elif(rem(x) == club[:0] + '\\' + club[0:]):
+            club = ""
+            continue
+
+        else:
+            data = rem(x).split(',')
+            pid = data[0]
+            goals = data[1]
+            if(len(data) == 3):
+                two_mins = data[2]
+            if(club in winners):
+                win = 1
+        connection = create_connection("fantasyDatabase.sqlite")
+
+        query = """
+                INSERT INTO TmpResults
+                VALUES ({}, {}, {}, {}, {}, {}, NULL, 1)
+            """.format(pid, year, round, goals, two_mins, win)
+
+        execute_query(connection, query)  
+            
+    connection.close()    
+    file.close()
 
 @app.route('/debug')
 def debug():
@@ -221,7 +437,7 @@ def changeToLogin():
             if(check_password_hash(ps, form.password.data)):
                 print("ADMIN LOGIN")
                 session['user'] = 'Master'
-                return render_template('index.html', name="Welcome Admin")
+                return render_template('index.html', name="Welcome Admin", fact1=fact1, fact2=fact2)
 
         elif(getUser(form.gmName.data,  form.password.data) == "" or not str(form.gmName.data).isalnum()): 
             #or not str(form.password.data).isalnum() # SQL Injection threat
@@ -235,7 +451,7 @@ def changeToLogin():
             #login_user(user, form.remember.data)
             #session['user'] = user.toJson()
             session['user'] = user.get_gmName()
-            return render_template('index.html', name="Welcome " + session['user'])
+            return render_template('index.html', name="Welcome " + session['user'], fact1=fact1, fact2=fact2)
 
     return render_template('login.html', form=form, message=message)
 
@@ -336,7 +552,7 @@ def registerUser(gmName, name, email, password):
 
     query = """
             INSERT INTO Users
-            VALUES (NULL, '{}', '{}', '{}', '{}');
+            VALUES (NULL, '{}', '{}', '{}', '{}', 0);
             """.format(gmName, name, email, password)
 
     execute_query(connection, query)
@@ -353,7 +569,7 @@ def create_tables():
             """
     execute_query(connection, query)
     query = """
-            DROP TABLE IF EXISTS TempResults
+            DROP TABLE IF EXISTS TmpResults
             """
     execute_query(connection, query)
     query = """
@@ -374,6 +590,14 @@ def create_tables():
     execute_query(connection, query)
 
 
+    # Columns we may need
+    # Gms -> Overall points - or could update points in results where win =-1 to ave points - might need own table
+    # Users -> year and paid - currently valid
+    # Team results table - for gk points
+    # Players -> Handiness, Shirt number, Kiwi - other cool personal stats
+    # Years -> shoe brand
+    #
+    #
 
     query = """
     CREATE TABLE IF NOT EXISTS Users (
@@ -381,7 +605,9 @@ def create_tables():
         gmName TEXT UNIQUE,
         name TEXT,
         email TEXT UNIQUE,
-        password TEXT);
+        password TEXT,
+        valid INTEGER NOT NULL
+        );
             """
     execute_query(connection, query)
 
@@ -414,6 +640,7 @@ def create_tables():
 		twoMins INTEGER,
 		win INTEGER NOT NULL,
 		points INTEGER,
+        played INTEGER,
 		PRIMARY KEY(pid, year, round),
 		FOREIGN KEY(pid, year) REFERENCES Years(pid, year)
         FOREIGN KEY(pid) REFERENCES Players(pid)
@@ -477,19 +704,21 @@ def create_tables():
 
     query = """
             INSERT Into USERS
-            VALUES (NULL, 'Sauls boys', 'Paulie I', 'publoz123@gmail.com', '{}'),
-                    (NULL, 'Dave', 'Master David', 'suh@asdasdsds', '{}');
+            VALUES (NULL, 'Sauls boys', 'Paulie I', 'publoz123@gmail.com', '{}', 1),
+                    (NULL, 'Dave', 'Master David', 'suh@asdasdsds', '{}', 1),
+                    (NULL, 'Bean', 'Mr Bean', 'bean@gmail.com', '{}', 0);
 
-            """.format(passw, passw)
+            """.format(passw, passw, passw)
     execute_query(connection, query)
-
+    
     query = """
             					
         INSERT INTO Players
         VALUES(NULL, 'Paul Ireland'),
             (NULL, 'Ben Potaka'),
             (NULL, 'Thomas Roxburgh'),
-            (NULL, 'Willy Makea');
+            (NULL, 'Willy Makea'),
+            (NULL, 'Luke Ireland');
             """
     execute_query(connection, query)
 
@@ -500,7 +729,8 @@ def create_tables():
 	   (2, 'Victoria', 2022, 20, 'A'),
 	   (3, 'Spartanz', 2022, 10, 'A'),
 	   (4, 'Spartanz', 2022, 20, 'A'),
-	   (1 ,'Vikings', 2021, 25, 'A');
+	   (1 ,'Vikings', 2021, 25, 'A'),
+       (5, 'Fruitflies', 2022, 25, 'A');
        """
     execute_query(connection, query)
 
@@ -512,15 +742,17 @@ def create_tables():
 
     query = """
     INSERT INTO Results 
-    VALUES (1, 2022, 1, 6, 0, 1, NULL),
-	   (4,  2022, 1, 3, 1, 0, NULL),
-	   (2,  2022, 1, 5, 2, 0, NULL),
-	   (3,  2022, 1, 0, 0, 0, NULL),
-	   (2, 2022, 2, 1, 0, 0, NULL),
-	   (4,  2022, 2, 5, 2, 1, NULL),
-	   (1,  2022, 2, 5, 2, 0, NULL),
-	   (3, 2022, 2, 0, 0, 0, NULL),
-	   (1, 2021, 1, 20, 3, 1, NULL)
+    VALUES (1, 2022, 1, 6, 0, 1, NULL, 1),
+	   (4,  2022, 1, 3, 1, 0, NULL, 1),
+	   (2,  2022, 1, 5, 2, 0, NULL, 1),
+	   (3,  2022, 1, 0, 0, 0, NULL, 1),
+	   (2, 2022, 2, 1, 0, 0, NULL, 1),
+	   (4,  2022, 2, 5, 2, 1, NULL, 1),
+	   (1,  2022, 2, 5, 2, 0, NULL, 1),
+	   (3, 2022, 2, 0, 0, 0, NULL, 1),
+	   (1, 2021, 1, 20, 3, 1, NULL, 1),
+       (1, 2022, 3, 0, 0, 0, NULL, 0),
+       (5, 2022, 3, 2, 0, 0, NULL, 1)
 	   ;
        """
     execute_query(connection, query)
@@ -551,8 +783,55 @@ def create_tables():
 
     connection.close()
 
-@app.route('/players/<col>', methods = ['GET'])
-def getPlayers(col):
+def updatePoints():
+    connection = create_connection("fantasyDatabase.sqlite")
+    query = """
+    UPDATE Results
+    SET points = goals - (twoMins*2) + (win)
+    WHERE points is NULL AND played = 1;
+       """
+    execute_query(connection, query)
+
+  
+
+@app.route("/injuries", methods = ["POST"])
+def injury():
+
+    if(not session["user"]  == "Master"):
+        return redirect("/home")
+
+    players = request.form
+    
+
+    connection = create_connection("fantasyDatabase.sqlite")
+    for x in players:
+        query = """
+                UPDATE Results
+                SET played = 0
+                WHERE pid = {} AND round = {} AND year = {};
+                """.format(x, round, year)
+        execute_query(connection, query)
+
+    count = 10 #MIN price
+    while True: #Injury replacement - get average rounded down
+        query = """
+                UPDATE Results 
+                SET Points = (SELECT CAST(AVG(points) AS INT)
+                            FROM Results R JOIN Years Y
+                            ON R.pid = Y.pid AND R.year = Y.Year
+                            WHERE NOT R.win = -1 AND r.year = {} AND r.round = {} AND y.price = {}
+                            GROUP BY y.price) 
+                WHERE played = 0
+                """.format(year, round, count)
+        execute_query(connection, query)
+        count += 5
+        if(count == 30): #MAX PRICE
+            break
+    return redirect('/admin')
+
+
+@app.route('/players/<col>/<order>', methods = ['GET'])
+def getPlayers(col, order):
     connection = create_connection("fantasyDatabase.sqlite")
     query = """
             SELECT P.playerName AS "Name", Y.price AS "Price", y.club || ' ' || Y.team AS "Team", sum(r.points) AS "Points",
@@ -561,8 +840,8 @@ def getPlayers(col):
             ON R.pid = p.pid AND r.year = y.year AND P.pid = y.pid AND R.pid = y.pid 
             WHERE R.year = {}
             GROUP BY P.pid
-            ORDER BY "{}" DESC
-            """.format(year, col)
+            ORDER BY "{}" {}
+            """.format(year, col, order)
     data = execute_read_query(connection, query)
 
     cols = ['Name', 'Price', 'Team', 'Points', 'AVG', '2 mins']
@@ -572,7 +851,7 @@ def getPlayers(col):
     dic = {"cols" : cols, "data" : data}
     return jsonify(dic)
 
-@app.route('/allTime/<col>', methods = ['GET'])
+@app.route('/allTime/<col>', methods = ['GET']) 
 def getAllTime(col):
     connection = create_connection("fantasyDatabase.sqlite")
 
@@ -609,7 +888,7 @@ def getTop():
     return jsonify(data)
 
     
-@app.route('/topGms', methods = ['GET'])
+@app.route('/topGms', methods = ['GET']) #TODO having round < round in where?
 def getGms():
    
     connection = create_connection("fantasyDatabase.sqlite")
@@ -647,10 +926,27 @@ def getSquad():
     return jsonify(dic)
 
 
-#TODO Make post, print out error message and don't save
+#TODO Make it a post request 
 #Check for number of players from a club - will also need GK
 @app.route('/saveSquad/<jsdata>')
 def saveSquad(jsdata):
+
+
+    if(locked):
+        dic = {"reason":"Selections are locked", "success" : "failure"}
+        return jsonify(dic)
+
+    query = """
+            SELECT valid
+            FROM Users
+            WHERE gmName = '{}';
+            """.format(session["user"])
+
+    connection = create_connection("fantasyDatabase.sqlite") 
+    if(execute_read_query_one(connection, query) == 0):
+        dic = {"reason":"Your account is not valid. Please pay or email support", "success":"failure"}
+        return jsonify(dic)
+
     data = json.loads(jsdata)
 
     total = 0
@@ -683,7 +979,7 @@ def saveSquad(jsdata):
         #return render_template('choose.html', round=round, error=error)#render_template('choose.html', round=round, error="Too Expensive")
 
     #return "SUCCESS"
-    connection = create_connection("fantasyDatabase.sqlite") 
+    
     query = """
             DELETE FROM Gms
             WHERE gmName = '{}' AND year = {} AND round = {} 
@@ -772,7 +1068,70 @@ def getSquadAve():
             """.format(year, round, session['user'])
 
      return jsonify(execute_read_query_one(connection, query))
-        
+
+@app.route('/getTemp')
+def getTemp():
+    if(session["user"] != "Master"):
+        return redirect('/home')
+    connection = create_connection("fantasyDatabase.sqlite")
+    query = """
+            SELECT P.pid, P.playerName, T.goals, t.twoMins, t.win
+            FROM TmpResults T JOIN Players P
+            ON T.pid = P.pid
+            """   
+    data = execute_read_query(connection, query)
+    cols = ["ID", "Name", "Goals", "2 Mins", "Win"]
+    dic = {"cols" : cols, "data" : data}
+    return jsonify(dic)
+
+@app.route('/store', methods = ['POST'])
+def store():
+    if(session["user"] != "Master"):
+        return redirect('/home')
+    connection = create_connection("fantasyDatabase.sqlite")
+    query = """
+            INSERT INTO Results
+            SELECT*
+            FROM TmpResults;
+            """
+    execute_query(connection, query)
+
+    query = """
+            DELETE FROM TmpResults
+            """
+    execute_query(connection, query)
+
+    return redirect('/admin')
+
+@app.route('/getQuery')
+def getQuery():
+    connection = create_connection("fantasyDatabase.sqlite")
+    results = execute_read_query(connection, adminQuery)
+    dic = {"cols":adCols, "data":results}
+    return jsonify(dic)
+
+
+@app.route('/getAllPlayers')
+def getAllPlayers():
+    connection = create_connection("fantasyDatabase.sqlite")
+
+    query = """
+              SELECT P.pid, p.playerName, count(r.played) AS "count"
+            FROM Players P LEFT JOIN (Select*
+										From Results
+										WHERE year = 2022) R
+									
+			ON P.pid = R.pid
+			GROUP BY P.pid
+			ORDER BY count Desc;
+            """
+    data = execute_read_query(connection, query)
+    print(data)
+    cols = ['ID', 'Name', 'Games played this year']
+    dic = {"cols":cols, "data":data}
+    return jsonify(dic)
+
+
 #  @app.route('/topPlayers', methods = ['GET'])
 #  def getTop():
 #     connection = create_connection("fantasyDatabase.sqlite")
@@ -784,11 +1143,9 @@ def getSquadAve():
 #     connection.close()
 #     return jsonify(data)
 
-round = 1
-year = 2022
-maxSquadCost = 70
-error = ""
-ps = generate_password_hash("WellyFantasy2021", method="sha256") #TODO should this be more securely initiated
+
+
+ps = generate_password_hash("abcabc", method="sha256") #TODO should this be more securely initiated
 
 
 

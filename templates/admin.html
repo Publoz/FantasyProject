@@ -1,3 +1,5 @@
+{% import "bootstrap/wtf.html" as wtf %}
+
 <html>
   <head>
     <link
@@ -27,20 +29,182 @@
       integrity="sha384-QJHtvGhmr9XOIpI6YVutG+2QOK9T+ZnN4kzFN1RtK3zEFEIsxhlmWl5/YESvpZ13"
       crossorigin="anonymous"
     ></script>
+    <script>
+      function buildHtmlTable(cols, myList, selector) {
+        addAllColumnHeaders(cols, selector);
+
+        for (var i = 0; i < myList.length; i++) {
+          var row$ = $("<tr/>");
+
+          for (var j = 0; j < myList[i].length; j++) {
+            var cellValue = myList[i][j];
+            if (cellValue == null) cellValue = "";
+            // row$.append($("<td/>").html(cellValue));
+            var c = document.createElement("td");
+            c.innerText = cellValue;
+            row$.append(c);
+          }
+          $(selector).append(row$);
+        }
+      }
+
+      // Adds a header row to the table and returns the set of columns.
+      // Need to do union of keys from all records as some records may not contain
+      // all records.
+      function addAllColumnHeaders(cols, selector) {
+        var headerTr$ = $("<tr/>");
+
+        for (var i = 0; i < cols.length; i++) {
+          headerTr$.append($("<th/>").html(cols[i]));
+        }
+        $(selector).append(headerTr$);
+      }
+    </script>
     <nav>
       <a id="link" href="https://www.wellingtonhandball.com/"
         ><img src="{{url_for('static', filename='whf.png')}}"
       /></a>
-      <a href="">Home</a>
+      <a href="home">Home</a>
       <a href="players.html">Players</a>
       <a href="myTeam">My Team</a>
       <a href="choose">Choose Players</a>
     </nav>
   </head>
   <body>
-    <form method="POST" enctype="multipart/form-data">
-      {{ form.csrf_token }} {{ form.results }}
-      <button type="submit">Upload</button>
-    </form>
+    <div class="main">
+      <h1>Upload Results for a round</h1>
+      <form method="POST" enctype="multipart/form-data">
+        {{ form.csrf_token }} {{ form.results }} {{ form.submitR }}
+      </form>
+
+      <h1>Upload this week's draw photo</h1>
+      <form method="POST" enctype="multipart/form-data">
+        {{ drawForm.csrf_token }} {{ drawForm.draw }} {{ drawForm.submitD }}
+      </form>
+
+      <div id="table"></div>
+
+      <button id="load">Load Temp Results</button>
+      <button id="store">Save Results</button>
+      <div id="forms">
+        <div id="controls">
+          <h1>Control Panel</h1>
+          {{ wtf.quick_form(adForm) }}
+        </div>
+        <div id="updatePlayer">
+          <h1>Update player results</h1>
+          {{ wtf.quick_form(playerForm) }}
+        </div>
+        <h1>Query</h1>
+        <div id="queryDiv">
+          {{ wtf.quick_form(queryForm) }}
+          <button id="but-query">Query Results</button>
+          <div id="table2"></div>
+          <script>
+            $("#but-query").click(function (e) {
+              $.ajax({
+                url: "/getQuery",
+                type: "GET",
+                dataType: "json", // added data type
+                success: function (res) {
+                  var selector = $("#table2");
+                  buildHtmlTable(res.cols, res.data, selector);
+                },
+              });
+            });
+          </script>
+        </div>
+      </div>
+      <script>
+        var injury = [];
+
+        // $.ajax({
+        //   url: "/squad",
+        //   type: "GET",
+        //   dataType: "json", // added data type
+        //   success: function (res) {},
+        // });
+
+        $("#load").click(function (e) {
+          $.ajax({
+            url: "/getTemp",
+            type: "GET",
+            dataType: "json", // added data type
+            success: function (res) {
+              var selector = $("#table");
+              buildHtmlTable(res.cols, res.data, selector);
+            },
+          });
+        });
+      </script>
+      <script>
+        $("#store").click(function (e) {
+          $.ajax({
+            url: "/store",
+            type: "POST",
+            // added data type
+          });
+        });
+      </script>
+    </div>
+    <div id="player-list">
+      <h3>Click a player ID to add to injury replacement</h3>
+      <script>
+        $.ajax({
+          url: "/getAllPlayers",
+          type: "GET",
+          dataType: "json", // added data type
+          success: function (res) {
+            var selector = $("#player-list");
+            buildHtmlTable(res.cols, res.data, selector);
+          },
+        });
+      </script>
+    </div>
+    <div id="selected">
+      <script>
+        function buildSelected() {
+          console.log("building");
+          var selector = $("#selected");
+          deleteTable("selected");
+          buildHtmlTable(["INJURED"], injury, selector);
+        }
+
+        function deleteTable(name) {
+          var table = document.getElementById(name);
+          while (table.hasChildNodes()) {
+            table.removeChild(table.childNodes[0]); //delete table
+          }
+        }
+
+        $("#player-list").click(function (e) {
+          console.log($(e.target).text());
+
+          if (injury.includes($(e.target).text())) {
+            return;
+          }
+
+          injury.push($(e.target).text());
+          buildSelected();
+        });
+      </script>
+    </div>
+    <button id="injuredSub">Update Injured</button>
+    <script>
+      $("#injuredSub").click(function (e) {
+        $.ajax({
+          url: "/injuries",
+          type: "POST",
+          data: injury,
+        });
+      });
+
+      $("#selected").click(function (e) {
+        injury.pop();
+        buildSelected();
+      });
+    </script>
+    <div id="users">{{ wtf.quick_form(userForm) }}</div>
+    <script></script>
   </body>
 </html>

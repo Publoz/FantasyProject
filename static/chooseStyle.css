@@ -40,7 +40,7 @@ a:not(#link):hover {
 }
 
 h1:not(#error) {
-  margin-top: 8%;
+  margin-top: 2%;
   text-align: center;
 }
 
@@ -88,12 +88,26 @@ section {
   text-align: center;
 }
 
+#draw {
+  display: block;
+  margin: 0 auto;
+  margin-top: 10%;
+}
+
 #VikingsA {
   background-color: red;
 }
 
 #VictoriaA {
   background-color: darkgreen;
+}
+
+#FruitfliesA {
+  background-color: silver;
+}
+
+#AguilasA {
+  background-color: darkblue;
 }
 
 button {

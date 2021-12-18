@@ -5,6 +5,8 @@
     crossorigin="anonymous"
   ></script>
   <script>
+    var column = "None";
+    var flip = "DESC";
     // Builds the HTML Table out of myList. --------------------------------------------WACK
     function buildHtmlTable(cols, myList, selector) {
       addAllColumnHeaders(cols, selector);
@@ -40,7 +42,7 @@
 
     window.onload = function load() {
       $.ajax({
-        url: "/players/Points",
+        url: "/players/Points/DESC",
         type: "GET",
         dataType: "json", // added data type
         success: function (res) {
@@ -112,8 +114,19 @@
             var y = window.scrollY;
             deleteTable("2022Players");
 
+            if (column == $(e.target).text()) {
+              //Flipping order by
+              if (flip == "DESC") {
+                flip = "ASC";
+              } else {
+                flip = "DESC";
+              }
+            } else {
+              flip = "DESC";
+            }
+            column = $(e.target).text();
             $.ajax({
-              url: "/players/" + $(e.target).text(),
+              url: "/players/" + $(e.target).text() + "/" + flip,
               type: "GET",
               dataType: "json", // added data type
               success: function (res) {
